@@ -94,7 +94,7 @@ macro embed_SmallVec(expr)
             end
 
             function Base.setindex!(view::$view_name, el, i)
-                #@boundscheck checkbounds(Bool, view, i)
+                @boundscheck checkbounds(Bool, view, i)
 
                 if i <= length(view.obj.$fhead)
                     view.obj.$fhead = @inbounds setindex(view.obj.$fhead, el, i)
@@ -105,6 +105,8 @@ macro embed_SmallVec(expr)
             end
 
             function Base.getindex(view::$view_name, i)
+                @boundscheck checkbounds(Bool, view, i)
+
                 if i <= length(view.obj.$fhead)
                     return @inbounds view.obj.$fhead[i]
                 else
