@@ -161,6 +161,16 @@ mutable struct Hull{D, T <: Number, K, V <: AbstractVector}
     )
 end
 
+function Base.show(io::IO, ::MIME"text/plain", hull::Hull{D, T, K, V}) where {D, T, K, V}
+    println(io, "Hull of $(length(hull.pts)) points in $D dimensions")
+    println(io, "  - Point type: $(eltype(V))")
+    println(io, "  - Kernel type: $K")
+    print(io, "  - $(length(vertices(hull))) Hull vertices: ")
+    println(io, vertices(hull))
+    print(io, "  - $(length(facets(hull))) Hull facets: ")
+    println(io, collect(facets(hull)))
+end
+
 facets(hull::Hull) = Iterators.map(f -> f.plane.point_indices, hull.facets)
 
 function vertices(hull::Hull)

@@ -33,6 +33,12 @@ export quickhull, delaunay, facets, delaunay_facets, vertices
     iteration_callback::Any = nothing
 end
 
+function Base.show(io::IO, ::MIME"text/plain", opts::Options)
+    println(io, "Quickhull Options:")
+    for prop in propertynames(opts)
+        println(io, "  - $(prop): $(getproperty(opts, prop))")
+    end
+end
 
 # create a Hull from point indices defining a simplex
 function makesimplexhull(pts::V, simp, ::Val{D}, K) where {V, D}
