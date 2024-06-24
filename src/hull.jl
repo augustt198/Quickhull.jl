@@ -147,7 +147,7 @@ end
 mutable struct Hull{D, T <: Number, K, V <: AbstractVector}
     pts::V
     facets::FacetList{D, K}
-    vertices::Union{Set{PointIndex}, Nothing}
+    vertices::Union{Vector{PointIndex}, Nothing}
     interior_pt::SVector{D, T}
 
     statistics::Union{Nothing, Vector{IterStat}}
@@ -165,14 +165,14 @@ facets(hull::Hull) = Iterators.map(f -> f.plane.point_indices, hull.facets)
 
 function vertices(hull::Hull)
     if isnothing(hull.vertices)
-        hull.vertices = Set{PointIndex}()
+        vset = Set{PointIndex}()
         for f in facets(hull)
-            union!(hull.vertices, f)
+            push!(vset, f...)
         end
-        return hull.vertices
+        hull.vertices = collect(vset)
     end
 
-    return hull.vertices::Set{PointIndex}
+    return hull.vertices::Vector{PointIndex}
 end
 
 # Filter out facets not on the bottom of the convex hull
