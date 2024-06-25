@@ -18,14 +18,14 @@ julia> wireframe(GLMakie.GeometryBasics.Mesh(hull))
 julia> scatter!(hull.pts, color=:black)
 ```
 
-<center><img src="img/hull.png" width="50%"></center>
+<p align="center"><img src="img/hull.png" width="50%"></p>
 
 ## QHull Comparison
 
 Quickhull.jl is competetive with QHull's performance even
 when exact arithmetic is used, although although it has fewer features.
 
-<center><img src="img/benchmark.png" width="80%"></center>
+<p align="center"><img src="img/benchmark.png" width="80%"></p>
 
 ## Robustness
 
