@@ -4,21 +4,28 @@ The quickhull algorithm in pure Julia for finding
 convex hulls, Delaunay triangulations, and Voronoi diagrams in N dimensions.
 
 ```julia
-using Quickhull
+julia> using Quickhull
 
-hull = quickhull(randn(100, 3))
+julia> hull = quickhull(randn(3, 500))
+Hull of 500 points in 3 dimensions
+  - Point type: StaticArraysCore.SVector{3, Float64}
+  - Kernel type: Quickhull.HyperplaneKernelExact_A{3, Float64, 3, 9}
+  - 26 Hull vertices: Int32[133, 308  …  307, 414]
+  - 48 Hull facets: StaticArraysCore.SVector{3, Int32}[[63, 493, 308], [493, 80, 86]  …  [419, 174, 365], [419, 274, 365]]
 
-# plotting compatibility:
-using GLMakie, GeometryBasics
-wireframe(GeometryBasics.Mesh(hull))
+julia> using GLMakie
+julia> wireframe(GLMakie.GeometryBasics.Mesh(hull))
+julia> scatter!(hull.pts, color=:black)
 ```
+
+<center><img src="img/hull.png" width="50%"></center>
 
 ## QHull Comparison
 
 Quickhull.jl is competetive with QHull's performance even
 when exact arithmetic is used, although although it has fewer features.
 
-![benchmark](img/benchmark.png)
+<center><img src="img/benchmark.png" width="80%"></center>
 
 ## Robustness
 
