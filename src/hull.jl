@@ -16,7 +16,7 @@ const FLAG_INDEX_DONE   = -4
     furthest_above_point::I
 
     # Vector of points above this facet
-    above::@SmallVec{PointIndex, 4}
+    above::@SmallVec{I, 4}
 
     function Facet(plane::Hyperplane{D, I, K}) where {D, I, K}
         new{D, I, K}(

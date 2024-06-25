@@ -6,7 +6,6 @@
 
 using MacroTools, StaticArrays
 
-# todo: make SmallVec work with type params from struct header?
 macro embed_SmallVec(expr)
     def = MacroTools.splitstructdef(expr)
     !def[:mutable] && error("Expected mutable struct")
