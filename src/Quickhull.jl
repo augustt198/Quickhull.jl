@@ -41,20 +41,20 @@ function Base.show(io::IO, ::MIME"text/plain", opts::Options)
 end
 
 # create a Hull from point indices defining a simplex
-function makesimplexhull(pts::V, simp, ::Val{D}, K) where {V, D}
+function makesimplexhull(pts::V, simp, ::Val{D}, I, K) where {V, D}
     T = eltype(eltype(V))
     K′ = typeof(make_kernel(K, SVector{D}(simp[1:end-1]), pts)) # better way to do this??
 
-    hull = Hull(pts, zeros(SVector{D, T}), K′)
+    hull = Hull(pts, zeros(SVector{D, T}), I, K′)
 
-    data = IterData{D, T, K′}()
+    data = IterData{D, T, I, K′}()
 
-    simplex_facets = Facet{D, K′}[]
+    simplex_facets = Facet{D, I, K′}[]
     for (i, pt_idx) in enumerate(simp)
         apex = pts[pt_idx]
 
         indices = simp[(1:i-1) ∪ (i+1:end)]
-        plane = Hyperplane(SVector{D, PointIndex}(indices), pts, K)
+        plane = Hyperplane(SVector{D, I}(indices), pts, K)
         plane = hyperplane_awayfrom(plane, apex, pts)
 
         facet = Facet(plane)
@@ -80,7 +80,7 @@ function makesimplexhull(pts::V, simp, ::Val{D}, K) where {V, D}
 end
 
 # find a good initial simplex by random sampling
-function goodsimplex(pts::V, ::Val{D}, K, nsamp=1000) where {V, D}
+function goodsimplex(pts::V, ::Val{D}, I, K, nsamp=1000) where {V, D}
     T = eltype(eltype(V))
     N = length(pts)
 
@@ -109,11 +109,11 @@ function goodsimplex(pts::V, ::Val{D}, K, nsamp=1000) where {V, D}
 
     minmaxidx = vcat(minidx, maxidx)
     maxvol = -one(T)
-    maxsimp = zeros(SVector{D+1, PointIndex})
+    maxsimp = zeros(SVector{D+1, I})
     for (i, comb) in enumerate(combinations(minmaxidx, D+1))
         (i > 1000) && break
 
-        comb = SVector{D+1, PointIndex}(comb)
+        comb = SVector{D+1, I}(comb)
         vol = abs(simplexvolume(pointmatrix(pts, comb)))
         if vol > maxvol
             maxvol, maxsimp = vol, comb
@@ -124,7 +124,7 @@ function goodsimplex(pts::V, ::Val{D}, K, nsamp=1000) where {V, D}
 
     # sampling only used repeated or coplanar points, so
     # exaustively search for a simplex with volume
-    simplex = Hyperplane(SVector{1, PointIndex}(1), pts, K)
+    simplex = Hyperplane(SVector{1, I}(1), pts, K)
     for d = 2:(D+1)
         found = -1
         for (i, pt) in enumerate(pts)
@@ -138,11 +138,11 @@ function goodsimplex(pts::V, ::Val{D}, K, nsamp=1000) where {V, D}
             throw(ArgumentError("All the points are coplanar. Try projecting into a lower dimension."))
         end
 
-        idxs = SVector{d, PointIndex}(simplex.point_indices..., found)
+        idxs = SVector{d, I}(simplex.point_indices..., found)
         simplex = Hyperplane(idxs, pts, K)
     end
 
-    return SVector{D+1, PointIndex}(simplex.point_indices)
+    return SVector{D+1, I}(simplex.point_indices)
 end
 
 function simplexvolume(pts)
@@ -215,7 +215,7 @@ end
 
 # find the point indices that define the ridge shared by planes x and y.
 # assumes x and y only differ by one point
-@generated function ridgepoints(x::SVector{D, PointIndex}, y::SVector{D, PointIndex}) where {D}
+@generated function ridgepoints(x::SVector{D, I}, y::SVector{D, I}) where {D, I}
     body = map(1:D) do i
         index = (1:i-1) ∪ (i+1:D)
         :( (x[$i] ∉ y) && return x[SVector{D-1}($(index...))] )
@@ -223,23 +223,23 @@ end
 
     Expr(:block,
         body...,
-        :(return zeros(SVector{D-1, PointIndex}))
+        :(return zeros(SVector{D-1, I}))
     )
 end
 
 # So we don't reallocate these for every iteration
-struct IterData{D, T, K}
-    queue       ::Vector{Facet{D, K}}
-    visible     ::Vector{Facet{D, K}}
-    horizon     ::Vector{NTuple{2, Facet{D, K}}}
-    newfacets   ::Vector{Facet{D, K}}
-    cands       ::Vector{PointIndex}
-    newplanes   ::Vector{Hyperplane{D, K}}
-    maxidx      ::Vector{PointIndex}
+struct IterData{D, T, I, K}
+    queue       ::Vector{Facet{D, I, K}}
+    visible     ::Vector{Facet{D, I, K}}
+    horizon     ::Vector{NTuple{2, Facet{D, I, K}}}
+    newfacets   ::Vector{Facet{D, I, K}}
+    cands       ::Vector{I}
+    newplanes   ::Vector{Hyperplane{D, I, K}}
+    maxidx      ::Vector{I}
     maxdist     ::Vector{T}
 
-    function IterData{D, T, K}() where {D, T, K}
-        new{D, T, K}((ft() for ft in fieldtypes(IterData{D, T, K}))...)
+    function IterData{D, T, I, K}() where {D, T, I, K}
+        new{D, T, I, K}((ft() for ft in fieldtypes(IterData{D, T, I, K}))...)
     end
 end
 
@@ -254,7 +254,7 @@ end
 
 # partition the point indices in `candidates` to the above sets of facets in `fs`.
 # `save` determines if unassigned candidate points should be saved in data.cands 
-function mark_above(fs::AbstractVector{Facet{D, K}}, candidates, pts, data::IterData{D, T, K}, save) where {D, T, K}
+function mark_above(fs::AbstractVector{Facet{D, I, K}}, candidates, pts, data::IterData{D, T, I, K}, save) where {D, T, I, K}
     maxidx  = fill!(resize!(data.maxidx,  length(fs)), -1)
     maxdist = fill!(resize!(data.maxdist, length(fs)), -one(T))
 
@@ -292,7 +292,7 @@ end
 
 # Do an iteration of quickhull: insert the point furthest
 # above `facet` into the hull.
-function iter(hull::Hull{D, T, K, V}, facet, data::IterData{D, T}) where {D, T, K, V}
+function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
     furthest_pt_idx = facet.furthest_above_point
     furthest_pt = hull.pts[furthest_pt_idx]
 
@@ -357,7 +357,7 @@ function iter(hull::Hull{D, T, K, V}, facet, data::IterData{D, T}) where {D, T, 
 
     # now we can assign the planes after they've all been computed
     for (i, (f, h)) in enumerate(horizon)
-        newfacets[i].adj = setindex(zero(SVector{D, PointIndex}), h.handle, 1)
+        newfacets[i].adj = setindex(zero(SVector{D, I}), h.handle, 1)
         newfacets[i].plane = newplanes[i]
         
         # fix adjacency list of the facet not visible ("behind" the horizon)
@@ -457,9 +457,9 @@ function _quickhull(pts::V, ::Val{D}, opts) where {V, D}
         pts = joggle(pts, opts.joggle_amount)
     end
 
-    simplex = goodsimplex(pts, Val(D), opts.kernel)
+    simplex = goodsimplex(pts, Val(D), opts.index_type, opts.kernel)
 
-    hull, data = makesimplexhull(pts, simplex, Val(D), opts.kernel)
+    hull, data = makesimplexhull(pts, simplex, Val(D), opts.index_type, opts.kernel)
 
     while true
         head = hull.facets.working_list_head

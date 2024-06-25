@@ -1,11 +1,11 @@
 abstract type HyperplaneKernel end
 
-struct Hyperplane{D, K <: HyperplaneKernel}
-    point_indices::SVector{D, PointIndex}
+struct Hyperplane{D, I <: Integer, K <: HyperplaneKernel}
+    point_indices::SVector{D, I}
     kernel::K
 end
 
-function Hyperplane(pis::SVector{D, PointIndex}, points, ::Type{K}) where {D, K}
+function Hyperplane(pis::SVector{D, I}, points, ::Type{K}) where {D, I, K}
     Hyperplane(pis, make_kernel(K, pis, points))
 end
 
@@ -27,7 +27,7 @@ struct HyperplaneKernelInexact{D, T <: Number} <: HyperplaneKernel
     offset::T
 end
 
-function make_kernel(::Type{K}, point_indices::SVector{D, PointIndex}, pts::AbstractVector) where {D, K <: HyperplaneKernelInexact}
+function make_kernel(::Type{K}, point_indices::SVector{D, I}, pts::AbstractVector) where {D, I, K <: HyperplaneKernelInexact}
     pts_T = pointmatrix(pts, point_indices)
     mat = vcat(hcat(pts_T, @SVector zeros(D)), (@SVector ones(D+1))')
 
@@ -40,12 +40,12 @@ function make_kernel(::Type{K}, point_indices::SVector{D, PointIndex}, pts::Abst
     HyperplaneKernelInexact(normal / mag, offset / mag)
 end
 
-function hyperplane_dist(plane::Hyperplane{D, K}, pt, pts) where {D, K <: HyperplaneKernelInexact}
+function hyperplane_dist(plane::Hyperplane{D, I, K}, pt, pts) where {D, I, K <: HyperplaneKernelInexact}
     k = plane.kernel
     dot(k.normal, pt) + k.offset
 end
 
-function hyperplane_invert(plane::Hyperplane{D, K}) where {D, K <: HyperplaneKernelInexact}
+function hyperplane_invert(plane::Hyperplane{D, I, K}) where {D, I, K <: HyperplaneKernelInexact}
     k = plane.kernel
     Hyperplane(plane.point_indices, K(-k.normal, -k.offset))
 end
@@ -57,12 +57,12 @@ struct HyperplaneKernelExact_A{D, T, D2, L} <: HyperplaneKernel
     sign::T
 end
 
-function make_kernel(::Type{K}, point_indices::SVector{D, PointIndex}, pts::AbstractVector) where {D, K <: HyperplaneKernelExact_A}
+function make_kernel(::Type{K}, point_indices::SVector{D, I}, pts::AbstractVector) where {D, I, K <: HyperplaneKernelExact_A}
     mat = pointmatrix(pts, point_indices)
     HyperplaneKernelExact_A(mat, one(eltype(mat)))
 end
 
-function hyperplane_dist(plane::Hyperplane{D, K}, pt, pts) where {D, K <: HyperplaneKernelExact_A}
+function hyperplane_dist(plane::Hyperplane{D, I, K}, pt, pts) where {D, I, K <: HyperplaneKernelExact_A}
     k = plane.kernel
 
     pt′ = SVector{length(pt)}(pt)
@@ -76,7 +76,7 @@ function hyperplane_dist(plane::Hyperplane{D, K}, pt, pts) where {D, K <: Hyperp
     end
 end
 
-function hyperplane_invert(plane::Hyperplane{D, K}) where {D, K <: HyperplaneKernelExact_A}
+function hyperplane_invert(plane::Hyperplane{D, I, K}) where {D, I, K <: HyperplaneKernelExact_A}
     k = plane.kernel
     Hyperplane(plane.point_indices, K(k.mat, -k.sign))
 end

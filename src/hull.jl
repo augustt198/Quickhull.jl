@@ -2,9 +2,9 @@ const NULL_INDEX        = -2
 const FLAG_INDEX_UNUSED = -3
 const FLAG_INDEX_DONE   = -4
 
-@embed_SmallVec mutable struct Facet{D, K}
-    plane::Hyperplane{D, K}
-    adj::SVector{D, FacetIndex}
+@embed_SmallVec mutable struct Facet{D, I, K}
+    plane::Hyperplane{D, I, K}
+    adj::SVector{D, I}
     
     handle::Int # i.e. this facet's index in a FacetList
 
@@ -13,14 +13,14 @@ const FLAG_INDEX_DONE   = -4
     next_handle::Int
     marker::Int
 
-    furthest_above_point::PointIndex
+    furthest_above_point::I
 
     # Vector of points above this facet
     above::@SmallVec{PointIndex, 4}
 
-    function Facet(plane::Hyperplane{D, K}) where {D, K}
-        new{D, K}(
-            plane, zero(SVector{D, FacetIndex}),
+    function Facet(plane::Hyperplane{D, I, K}) where {D, I, K}
+        new{D, I, K}(
+            plane, zero(SVector{D, I}),
             NULL_INDEX, NULL_INDEX, NULL_INDEX,
             0, -1)
     end
@@ -32,13 +32,13 @@ end
 #    This list is doubly linked.
 #  - unused list, containing facets that are no
 #    longer in use and can be reused. Singly linked.
-mutable struct FacetList{D, K}
-    arr::Vector{Facet{D, K}}
+mutable struct FacetList{D, I, K}
+    arr::Vector{Facet{D, I, K}}
 
     working_list_head::Int
     unused_list_head::Int
 
-    FacetList{D, K}() where {D, K} = new{D, K}(Facet{D, K}[], NULL_INDEX, NULL_INDEX)
+    FacetList{D, I, K}() where {D, I, K} = new{D, I, K}(Facet{D, K}[], NULL_INDEX, NULL_INDEX)
 end
 
 function list_length(fl::FacetList, handle)
@@ -144,24 +144,26 @@ finished_facets(fl::FacetList) = filter(f -> isempty(f.above) && f.next_handle =
     time::Int
 end
 
-mutable struct Hull{D, T <: Number, K, V <: AbstractVector}
+mutable struct Hull{D, T <: Number, I <: Integer, K, V <: AbstractVector}
     pts::V
-    facets::FacetList{D, K}
-    vertices::Union{Vector{PointIndex}, Nothing}
+    facets::FacetList{D, I, K}
+    vertices::Union{Vector{I}, Nothing}
     interior_pt::SVector{D, T}
 
     statistics::Union{Nothing, Vector{IterStat}}
 
-    Hull(pts::V, interior_pt::SVector{D, T}, ::Type{K}) where {D, T, K, V} = new{D, T, K, V}(
+    Hull(pts::V, interior_pt::SVector{D, T}, ::Type{I}, ::Type{K}) where {D, T, I, K, V} = new{D, T, I, K, V}(
         pts,
-        FacetList{D, K}(),
+        FacetList{D, I, K}(),
         nothing,
         interior_pt,
         nothing
     )
 end
 
-function Base.show(io::IO, ::MIME"text/plain", hull::Hull{D, T, K, V}) where {D, T, K, V}
+indextype(::Hull{D, T, I}) where {D, T, I} = I
+
+function Base.show(io::IO, ::MIME"text/plain", hull::Hull{D, T, I, K, V}) where {D, T, I, K, V}
     println(io, "Hull of $(length(hull.pts)) points in $D dimensions")
     println(io, "  - Point type: $(eltype(V))")
     println(io, "  - Kernel type: $K")
@@ -174,19 +176,20 @@ end
 facets(hull::Hull) = Iterators.map(f -> f.plane.point_indices, hull.facets)
 
 function vertices(hull::Hull)
+    I = indextype(hull)
     if isnothing(hull.vertices)
-        vset = Set{PointIndex}()
+        vset = Set{I}()
         for f in facets(hull)
             push!(vset, f...)
         end
         hull.vertices = collect(vset)
     end
 
-    return hull.vertices::Vector{PointIndex}
+    return hull.vertices::Vector{I}
 end
 
 # Filter out facets not on the bottom of the convex hull
-function delaunay_facets(hull::Hull{D, T, K, V}) where {D, T, K, V}
+function delaunay_facets(hull::Hull{D}) where {D}
     maxlift = maximum(last, hull.pts)
 
     return Iterators.filter(hull.facets) do facet
