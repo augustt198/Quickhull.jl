@@ -1,5 +1,5 @@
 using Test
-import Random, DataStructures
+import Random
 
 using Quickhull
 import QHull
@@ -36,7 +36,7 @@ for D in (2, 3)
                     my_facets = Quickhull.finished_facets(my_hull.facets)
 
                     println("Elapsed ($sample_func $D / $N): $t1 -- $t2     [$(length(my_facets)) facets] [$(size(their_hull.simplices))]")
-                    @test vertices(my_hull) == vertexset(their_hull)
+                    @test Set(vertices(my_hull)) == vertexset(their_hull)
                 end
             end
         end
