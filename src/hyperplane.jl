@@ -33,8 +33,7 @@ function make_kernel(::Type{K}, point_indices::SVector{D, I}, pts::AbstractVecto
 
     ns = qr(mat).Q[:,end] # nullspace
 
-    droplast = SVector{D}(i for i = 1:D)
-    normal, offset = ns[droplast], ns[end]
+    normal, offset = droplast(ns), ns[end]
     mag = norm(normal)
 
     HyperplaneKernelInexact(normal / mag, offset / mag)
@@ -100,7 +99,7 @@ struct HyperplaneKernelExact_C{T, Dp1} <: HyperplaneKernel
     sign::T
 end
 
-function make_kernel(::Type{K}, point_indices::SVector{D, PointIndex}, pts::AbstractVector) where {D, K <: HyperplaneKernelExact_C}
+function make_kernel(::Type{K}, point_indices::SVector{D, I}, pts::AbstractVector) where {D, I, K <: HyperplaneKernelExact_C}
     mat = pointmatrix(pts, point_indices)'
 
     T = eltype(mat)

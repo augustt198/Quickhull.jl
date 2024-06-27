@@ -34,7 +34,7 @@ struct LiftedPoints{V, P, T} <: AbstractVector{LiftedPoint{P, T}}
         # this we can scale the lifted coordinates.
         min, max = extrema(lps.lifted_coords)
         c = 2^12
-        if (min - max) < c * eps(min)
+        if (max - min) < c * eps(min)
             lps.lifted_coords .= c .* (lps.lifted_coords .- min)
         end
 
@@ -44,6 +44,28 @@ end
 
 Base.getindex(lps::LiftedPoints, idx::Integer) = LiftedPoint(lps.points[idx], lps.lifted_coords[idx])
 Base.size(lps::LiftedPoints) = size(lps.points)
+
+struct DelaunayHull{D, T, I, H <: Hull{D, T, I}} <: AbstractHull{D, T, I}
+    hull::H
+end
+
+# Filter out facets not on the bottom of the convex hull
+function delaunay_facets(dhull::DelaunayHull)
+    hull = dhull.hull
+    maxlift = maximum(last, hull.pts)
+
+    return filter(hull.facets.arr) do facet
+        D = length(first(hull.pts))
+        above_pt = sum(SVector{D}(hull.pts[i]) for i in facet.plane.point_indices) / D
+        above_pt = setindex(above_pt, above_pt[end] + 2maxlift, D)
+        hyperplane_dist(facet.plane, above_pt, hull.pts) < 0
+    end
+end
+
+points(dhull::DelaunayHull) = mappedarray(lp -> Point(lp.point), dhull.hull.pts)
+vertices(dhull::DelaunayHull) = vertices(dhull.hull)
+facets(dhull::DelaunayHull) = mappedarray(f -> NgonFace(f.plane.point_indices), delaunay_facets(dhull))
+
 
 """
     delaunay(points)
@@ -55,6 +77,6 @@ Compute the d-dimensional Delaunay triangulation of `points`.
 The triangulation is found by lifting into (d+1) dimensions
 and taking the convex hull.
 """
-delaunay(pts, opts=Options()) = quickhull(LiftedPoints(pts), opts)
+delaunay(pts, opts=Options()) = DelaunayHull(quickhull(LiftedPoints(pts), opts))
 
 delaunay(pts::Matrix, opts=Options()) = delaunay(matrix2points(pts), opts)

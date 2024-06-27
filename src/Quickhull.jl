@@ -1,26 +1,28 @@
 module Quickhull
 
 using StaticArrays
+using GeometryBasics
 using LinearAlgebra
 using Combinatorics
 using Base.Iterators
 using MacroTools
+using MappedArrays
 
-include("common.jl")
+include("utils.jl")
 include("predicate.jl")
 include("hyperplane.jl")
 include("smallvec.jl")
 include("hull.jl")
 include("delaunay.jl")
 
-export quickhull, delaunay, facets, delaunay_facets, vertices
+export quickhull, delaunay, facets, delaunay_facets, vertices, points
 
 @kwdef struct Options{K <: HyperplaneKernel, I <: Integer}
     # numerical kernel used for plane calculations
     kernel::Type{K} = HyperplaneKernelExact_A
 
     # integer type used as indices
-    index_type::Type{I} = Int32
+    indextype::Type{I} = Int32
 
     # whether to joggle input points and by how much
     joggle::Bool = false
@@ -147,8 +149,7 @@ end
 
 function simplexvolume(pts)
     D, N = size(pts)
-    droplast = SVector{N-1}(i for i = 1:(N-1))
-    mat, pt = pts[:, droplast], pts[:, end]
+    mat, pt = droplast(pts, dims=(2,)), pts[:, end]
 
     if N == D+1 # mat is square
         return vol_exact(mat, pt) / factorial(N-1)
@@ -159,15 +160,9 @@ function simplexvolume(pts)
 end
 
 # Compute the arithmetic center of the hull's vertices
-function computecenter(hull)
-    indices = Set(Int[])
-    for f in hull.facets
-        for pi in f.plane.point_indices
-            push!(indices, pi)
-        end
-    end
-    
-    return sum(hull.pts[i] for i in indices) / length(indices)
+function center_average(hull)
+    vs = vertices(hull)    
+    return sum(hull.pts[i] for i in vs) / length(vs)
 end
 
 # Compute the area and volume of the hull.
@@ -176,21 +171,17 @@ end
 # where the base is a facet and the apex is a fixed
 # interior point. The volume of each pyramid is then
 # (facet area)*(height to apex)/dimension.
-function compute_areavol(hull::Hull{D, T}) where {D, T}
-    c = computecenter(hull)
+function areavol(hull::Hull{D, T}) where {D, T}
+    c = center_average(hull)
     
-    totalarea = zero(T)
-    totalvol = zero(T)
-    for f in hull.facets # todo pairwise sum for accuracy
+    areavol = sum(hull.facets) do f
         area = simplexvolume(pts[f.plane.point_indices])
         dist = hyperplane_dist(f.plane, c, hull.pts)
-        vol = area*dist / D
-        
-        totalarea += abs(area)
-        totalvol += abs(vol)
+
+        SVector{2}(area, area * dist)
     end
     
-    return totalarea, totalvol
+    return areavol[1], areavol[2] / D
 end
 
 # assuming a and b don't have repeats
@@ -457,9 +448,9 @@ function _quickhull(pts::V, ::Val{D}, opts) where {V, D}
         pts = joggle(pts, opts.joggle_amount)
     end
 
-    simplex = goodsimplex(pts, Val(D), opts.index_type, opts.kernel)
+    simplex = goodsimplex(pts, Val(D), opts.indextype, opts.kernel)
 
-    hull, data = makesimplexhull(pts, simplex, Val(D), opts.index_type, opts.kernel)
+    hull, data = makesimplexhull(pts, simplex, Val(D), opts.indextype, opts.kernel)
 
     while true
         head = hull.facets.working_list_head

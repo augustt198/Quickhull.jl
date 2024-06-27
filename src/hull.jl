@@ -144,7 +144,13 @@ finished_facets(fl::FacetList) = filter(f -> isempty(f.above) && f.next_handle =
     time::Int
 end
 
-mutable struct Hull{D, T <: Number, I <: Integer, K, V <: AbstractVector}
+abstract type AbstractHull{D, T, I} end
+
+function GeometryBasics.Mesh(hull::AbstractHull)
+    GeometryBasics.Mesh(points(hull), facets(hull))
+end
+
+mutable struct Hull{D, T <: Number, I <: Integer, K, V <: AbstractVector} <: AbstractHull{D, T, I}
     pts::V
     facets::FacetList{D, I, K}
     vertices::Union{Vector{I}, Nothing}
@@ -163,17 +169,13 @@ end
 
 indextype(::Hull{D, T, I}) where {D, T, I} = I
 
-function Base.show(io::IO, ::MIME"text/plain", hull::Hull{D, T, I, K, V}) where {D, T, I, K, V}
-    println(io, "Hull of $(length(hull.pts)) points in $D dimensions")
-    println(io, "  - Point type: $(eltype(V))")
-    println(io, "  - Kernel type: $K")
+function Base.show(io::IO, ::MIME"text/plain", hull::AbstractHull{D, T, I}) where {D, T, I}
+    println(io, "Hull of $(length(points(hull))) points in $D dimensions")
     print(io, "  - $(length(vertices(hull))) Hull vertices: ")
     println(io, vertices(hull))
     print(io, "  - $(length(facets(hull))) Hull facets: ")
-    println(io, collect(facets(hull)))
+    println(io, facets(hull))
 end
-
-facets(hull::Hull) = Iterators.map(f -> f.plane.point_indices, hull.facets)
 
 function vertices(hull::Hull)
     I = indextype(hull)
@@ -188,13 +190,5 @@ function vertices(hull::Hull)
     return hull.vertices::Vector{I}
 end
 
-# Filter out facets not on the bottom of the convex hull
-function delaunay_facets(hull::Hull{D}) where {D}
-    maxlift = maximum(last, hull.pts)
-
-    return Iterators.filter(hull.facets) do facet
-        above_pt = sum(SVector{D}(hull.pts[i]) for i in facet.plane.point_indices) / D
-        above_pt = setindex(above_pt, above_pt[end] + 2maxlift, D)
-        hyperplane_dist(facet.plane, above_pt, hull.pts) < 0
-    end
-end
+points(hull::Hull) = mappedarray(pt -> Point(pt), hull.pts)
+facets(hull::Hull) = mappedarray(f -> NgonFace(f.plane.point_indices), hull.facets.arr)
