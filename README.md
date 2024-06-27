@@ -8,17 +8,23 @@ julia> using Quickhull
 
 julia> hull = quickhull(randn(3, 500))
 Hull of 500 points in 3 dimensions
-  - Point type: StaticArraysCore.SVector{3, Float64}
-  - Kernel type: Quickhull.HyperplaneKernelExact_A{3, Float64, 3, 9}
-  - 26 Hull vertices: Int32[133, 308  …  307, 414]
-  - 48 Hull facets: StaticArraysCore.SVector{3, Int32}[[63, 493, 308], [493, 80, 86]  …  [419, 174, 365], [419, 274, 365]]
+  - 31 Hull vertices: Int32[297, 438  …  147, 376]
+  - 58 Hull facets: TriangleFace{Int32}[TriangleFace(139, 249, 243)  …  TriangleFace(104, 147, 243)]
 
-julia> using GLMakie
-julia> wireframe(GLMakie.GeometryBasics.Mesh(hull))
+julia> using GLMakie, GeometryBasics
+julia> wireframe(GeometryBasics.Mesh(hull))
 julia> scatter!(hull.pts, color=:black)
 ```
 
 <p align="center"><img src="img/hull.png" width="50%"></p>
+
+```julia
+julia> tri = delaunay(rand(2, 1000));
+julia> wireframe(GeometryBasics.Mesh(tri))
+```
+
+<p align="center"><img src="img/tri.png" width="50%"></p>
+
 
 ## QHull Comparison
 
