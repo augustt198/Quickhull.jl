@@ -19,11 +19,13 @@ julia> scatter!(hull.pts, color=:black)
 <p align="center"><img src="img/hull.png" width="50%"></p>
 
 ```julia
-julia> tri = delaunay(rand(2, 1000));
-julia> wireframe(GeometryBasics.Mesh(tri))
+julia> tri = delaunay(rand(2, 100));
+julia> f = Figure()
+julia> wireframe!(Axis(f[1,1]), GeometryBasics.Mesh(tri))
+julia> linesegments!(Axis(f[1,2]), voronoi_edge_points(tri), color=:red)
 ```
 
-<p align="center"><img src="img/tri.png" width="50%"></p>
+<p align="center"><img src="img/tri.png" width="80%"></p>
 
 
 ## QHull Comparison
