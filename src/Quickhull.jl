@@ -14,8 +14,11 @@ include("hyperplane.jl")
 include("smallvec.jl")
 include("hull.jl")
 include("delaunay.jl")
+include("voronoi.jl")
 
-export quickhull, delaunay, facets, delaunay_facets, vertices, points
+export quickhull, delaunay,
+    facets, vertices, points,
+    voronoi_centers, voronoi_edges, voronoi_edge_points
 
 @kwdef struct Options{K <: HyperplaneKernel, I <: Integer}
     # numerical kernel used for plane calculations
