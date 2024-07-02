@@ -15,13 +15,8 @@ function pointmatrix(pts, indices::SVector{N, T}) where {N, T}
     return mat
 end
 
-function joggle(points, amt)
-    D = length(points[1])
-
-    map(points) do pt
-        s = 2rand() - 1
-        SVector{D}(x + amt * s * eps(x) for x in pt)
-    end
+joggle(points, amt) = map(points) do pt
+    pt + amt * (2rand() - 1) * eps.(x)
 end
 
 @inline exactify(x) = big.(rationalize.(x, tol=0))

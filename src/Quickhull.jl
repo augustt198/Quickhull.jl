@@ -147,7 +147,8 @@ function goodsimplex(pts::V, ::Val{D}, I, K, nsamp=1000) where {V, D}
         simplex = Hyperplane(idxs, pts, K)
     end
 
-    return SVector{D+1, I}(simplex.point_indices)
+    # loop above makes inference hard
+    return SVector{D+1, I}(simplex.point_indices)::SVector{D+1, I}
 end
 
 function simplexvolume(pts)
