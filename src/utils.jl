@@ -16,7 +16,7 @@ function pointmatrix(pts, indices::SVector{N, T}) where {N, T}
 end
 
 joggle(points, amt) = map(points) do pt
-    pt + amt * (2rand() - 1) * eps.(x)
+    pt + amt * (2rand() - 1) * eps.(pt)
 end
 
 @inline exactify(x) = big.(rationalize.(x, tol=0))
