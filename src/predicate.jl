@@ -28,7 +28,7 @@ function symbolic_permanent_exactinit(rows)
     n = length(rows)
     if n == 2
         a, b, c, d = rows[1][1], rows[1][2], rows[2][1], rows[2][2]
-        return :(abs($a * $c) + abs($b * $d))
+        return :(abs($a * $d) + abs($b * $c))
     end
 
     expr = nothing
@@ -39,7 +39,7 @@ function symbolic_permanent_exactinit(rows)
         if isnothing(expr)
             expr = :($sym * $ex)
         else
-            expr = :($expr + $sym * $ex)
+            expr = :(muladd($sym, $ex, $expr))
         end
     end
 

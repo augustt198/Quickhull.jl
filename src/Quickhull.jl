@@ -7,6 +7,7 @@ using Combinatorics
 using Base.Iterators
 using MacroTools
 using MappedArrays
+using SIMD
 
 include("utils.jl")
 include("predicate.jl")

@@ -70,7 +70,7 @@ function hyperplane_dist(plane::Hyperplane{D, I, K}, pt, pts) where {D, I, K <: 
         return vol_exact(k.mat, pt′) * k.sign
     else
         M_big = exactify(k.mat) .- exactify(pt′)
-        det_big = det(M_big' * M_big)
+        det_big = det(M_big' * M_big) # this is always nonnegative
         return sqrt(eltype(k.mat)(det_big)) * k.sign
     end
 end
@@ -88,8 +88,8 @@ end
 end
 
 @generated function _perm_expanded(mat::SMatrix{D, D, T, D2}) where {D, T, D2}
-    mat2 = [[:(mat[$i, $j]) for j = 1:D] for i = 1:D]
-    return  symbolic_permanent_exactinit(mat2)
+    mat2 = [[:(abs(mat[$i, $j])) for j = 1:D] for i = 1:D]
+    return  symbolic_permanent(mat2)
 end
 
 # this is broken right now
@@ -106,6 +106,7 @@ function make_kernel(::Type{K}, point_indices::SVector{D, I}, pts::AbstractVecto
 
     mat′ = hcat(mat, ones(SVector{D, T}))
     function minor(i)
+        # drop ith index
         ind = SVector{D}(j >= i ? j+1 : j for j = 1:D)
         cut = mat′[:, ind]
         _det_expanded(cut)
@@ -168,10 +169,8 @@ end
     return T(final)
 end
 
-function hyperplane_dist(plane::Hyperplane{D, HyperplaneKernelExact_C{T, Dp1}}, pt, pts) where {D, Dp1, T}
+function hyperplane_dist(plane::Hyperplane{D, I, HyperplaneKernelExact_C{T, Dp1}}, pt, pts) where {D, I, Dp1, T}
     k = plane.kernel
-
-    #d, p = det_using_minors(k.minors, k.minor_perms, pt)
 
     minors, minor_perms = k.minors, k.minor_perms
     d = p = zero(eltype(minors))
@@ -180,7 +179,6 @@ function hyperplane_dist(plane::Hyperplane{D, HyperplaneKernelExact_C{T, Dp1}}, 
             d = pt[i] * minors[i]
             p = abs(pt[i]) * minor_perms[i]
         else
-            #d += isodd(i) ? d_mul : -d_mul
             sgn = isodd(i) ? 1 : -1
             d = muladd(sgn * pt[i], minors[i], d)
             p = muladd(abs(pt[i]), minor_perms[i], p)
@@ -195,11 +193,76 @@ function hyperplane_dist(plane::Hyperplane{D, HyperplaneKernelExact_C{T, Dp1}}, 
     else
         mat = pointmatrix(pts, plane.point_indices)
         pt′ = SVector{D}(pt)
-        return detn_exact(mat .- pt′) * k.sign
+        return vol_exact_slow(mat, pt′) * -k.sign
     end
 end
 
-function hyperplane_invert(plane::Hyperplane{D, K}) where {D, K <: HyperplaneKernelExact_C}
+function hyperplane_invert(plane::Hyperplane{D, I, K}) where {D, I, K <: HyperplaneKernelExact_C}
     k = plane.kernel
     Hyperplane(plane.point_indices, K(k.minors, k.minor_perms, -k.sign))
+end
+
+struct HyperplaneKernelExactSIMD{T, Dp1} <: HyperplaneKernel
+    cofactor_pairs::SVector{Dp1, SIMD.Vec{2, T}}
+    sign::T
+end
+
+function make_kernel(::Type{K}, point_indices::SVector{D, I}, pts::AbstractVector) where {D, I, K <: HyperplaneKernelExactSIMD}
+    pt_D = length(first(pts))
+    if D != pt_D
+        # fallback when not simplex
+        return make_kernel(HyperplaneKernelExact_A, point_indices, pts)
+    end
+
+    mat = pointmatrix(pts, point_indices)'
+    T = eltype(mat)
+
+    mat′ = hcat(mat, ones(SVector{D, T}))
+    function cofactor(i)
+        # drop ith index
+        ind = SVector{D}(j >= i ? j+1 : j for j = 1:D)
+        cut = mat′[:, ind]
+        (-1)^(i+1) * _det_expanded(cut)
+    end
+
+    function cofactor_perm(i)
+        ind = SVector{D}(j >= i ? j+1 : j for j = 1:D)
+        cut = mat′[:, ind]
+        _perm_expanded(cut)
+    end
+
+    cofactor_pairs = SVector{D+1, SIMD.Vec{2, T}}(SIMD.Vec{2, T}((cofactor(i), cofactor_perm(i))) for i = 1:D+1)
+    HyperplaneKernelExactSIMD(cofactor_pairs, one(T))
+end
+
+function hyperplane_dist(plane::Hyperplane{D, I, HyperplaneKernelExactSIMD{T, Dp1}}, pt, pts) where {D, I, Dp1, T}
+    k = plane.kernel
+    cps = k.cofactor_pairs
+
+    pt_simd = SIMD.Vec{D, T}((pt...,))
+    pt_abs_simd = abs(pt_simd)
+    dp = SIMD.Vec{2, T}(0)
+    for i = 1:D
+        coord = SIMD.Vec{2, T}((pt_simd[i], pt_abs_simd[i]))
+        if i == 1
+            dp = muladd(coord, cps[1], cps[Dp1])
+        else
+            dp = muladd(coord, cps[i], dp)
+        end
+    end
+
+    d, p = dp[1], dp[2]
+
+    if abs(d) > det_using_minors_relerror2(Val(Dp1), T) * p
+        return d * k.sign
+    else
+        mat = pointmatrix(pts, plane.point_indices)
+        pt′ = SVector{D}(pt)
+        return vol_exact_slow(mat, pt′) * -k.sign
+    end
+end
+
+function hyperplane_invert(plane::Hyperplane{D, I, K}) where {D, I, K <: HyperplaneKernelExactSIMD}
+    k = plane.kernel
+    Hyperplane(plane.point_indices, K(k.cofactor_pairs, -k.sign))
 end
