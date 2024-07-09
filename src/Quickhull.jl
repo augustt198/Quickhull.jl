@@ -251,24 +251,25 @@ end
 # partition the point indices in `candidates` to the above sets of facets in `fs`.
 # `save` determines if unassigned candidate points should be saved in data.cands 
 function mark_above(fs::AbstractVector{Facet{D, I, K}}, candidates, pts, data::IterData{D, T, I, K}, save) where {D, T, I, K}
-    maxidx  = fill!(resize!(data.maxidx,  length(fs)), -1)
     maxdist = fill!(resize!(data.maxdist, length(fs)), -one(T))
 
+    nfs = length(fs)
     for idx in candidates
         pt = @inbounds pts[idx]
         marked = false
-        for (fi, facet) in enumerate(fs)
+        for fi = 1:nfs
+            facet = @inbounds fs[fi]
             plane = facet.plane
             
             # don't check points that define this plane
-            (idx in plane.point_indices) && continue
+            (idx ∈ plane.point_indices) && continue
         
-            dist = hyperplane_dist(plane, pt, pts)
+            dist = @inline hyperplane_dist(plane, pt, pts)
             if dist > 0 # 'above'
                 push!(facet.above, idx)
                 
                 if dist > (@inbounds maxdist[fi])
-                    @inbounds maxidx[fi]  = idx
+                    facet.furthest_above_point = idx
                     @inbounds maxdist[fi] = dist
                 end
                 marked = true
@@ -279,10 +280,6 @@ function mark_above(fs::AbstractVector{Facet{D, I, K}}, candidates, pts, data::I
         if save && !marked
             push!(data.cands, idx)
         end
-    end
-
-    for (fi, facet) in enumerate(fs)
-        facet.furthest_above_point = @inbounds maxidx[fi]
     end
 end
 
