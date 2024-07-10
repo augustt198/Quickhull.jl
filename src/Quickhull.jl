@@ -16,17 +16,48 @@ include("smallvec.jl")
 include("hull.jl")
 include("delaunay.jl")
 include("voronoi.jl")
+include("parallel.jl")
 
 export quickhull, delaunay,
     facets, vertices, points,
     voronoi_centers, voronoi_edges, voronoi_edge_points
 
-@kwdef struct Options{K <: HyperplaneKernel, I <: Integer}
+abstract type SubdivideOption end
+
+struct NoSubdivide <: SubdivideOption end
+
+@kwdef struct ParallelSubdivide <: SubdivideOption
+    chunks::Int = Threads.nthreads()
+    levels::Int = 1
+end
+
+@kwdef struct SerialSubdivide <: SubdivideOption
+    chunks::Int = Threads.nthreads()
+    levels::Int = 1
+end
+
+"""
+    Quickhull.Options(options...)
+
+Avaliable options are:
+  - `kernel` -- a subtype of `HyperplaneKernel` used for hyperplane
+    calculations. `HyperplaneKernelExact_A` by default.
+  - `indextype` -- a subtype of `Integer` that specifies how vertex
+    indices should be stored. `Int32` by default.
+  - `joggle` -- whether to joggle the input points. `false` by default
+  - `joggle_amount` -- how much to joggle input points. `100.0` by default.
+  - `statistics` -- whether to record statistics. `false` by default.
+"""
+@kwdef struct Options{K <: HyperplaneKernel, I <: Integer, SubdivOpt <: SubdivideOption}
     # numerical kernel used for plane calculations
     kernel::Type{K} = HyperplaneKernelExact_A
 
     # integer type used as indices
     indextype::Type{I} = Int32
+
+    # this feels clunky but hard to get type stability if whether
+    # to use subdivision isn't known at compile time
+    subdivide::SubdivOpt = NoSubdivide()
 
     # whether to joggle input points and by how much
     joggle::Bool = false
@@ -47,8 +78,9 @@ function Base.show(io::IO, ::MIME"text/plain", opts::Options)
 end
 
 # create a Hull from point indices defining a simplex
-function makesimplexhull(pts::V, simp, ::Val{D}, I, K) where {V, D}
+function makesimplexhull(pts::V, simp, I, K) where V
     T = eltype(eltype(V))
+    D = length(first(pts))
     K′ = typeof(make_kernel(K, SVector{D}(simp[1:end-1]), pts)) # better way to do this??
 
     hull = Hull(pts, zeros(SVector{D, T}), I, K′)
@@ -86,8 +118,9 @@ function makesimplexhull(pts::V, simp, ::Val{D}, I, K) where {V, D}
 end
 
 # find a good initial simplex by random sampling
-function goodsimplex(pts::V, ::Val{D}, I, K, nsamp=1000) where {V, D}
+function goodsimplex(pts::V, I, K, nsamp=1000) where V
     T = eltype(eltype(V))
+    D = length(first(pts))
     N = length(pts)
 
     # oof can we end up with repeated indices?? 
@@ -413,46 +446,13 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
 
 end
 
+function _quickhull_main(pts::V, opts) where V
+    I = opts.indextype
+    K = opts.kernel
 
-dimcheck(D, N) = (N < D+1) && throw(ArgumentError("Need at least $(D+1) points in $D dimensions (got $N points)"))
+    simplex = goodsimplex(pts, I, K)
 
-"""
-    quickhull(points, options=Quickhull.Options())
-
-Compute the convex hull of `points`. `points` can be a vector of
-point-like objects (e.g. `Tuple` or `StaticVector`) or a (D, N) sized matrix
-of numbers.
-
-See documentation for `Quickhull.Options`.
-
-`kernel` can optionally be specified to control how geometric predicates
-are computed. For instance, `HyperplaneKernelInexact` is fast not numerically
-robust, while `HyperplaneKernelExact_A` is slightly slower but robust.
-"""
-function quickhull(pts::AbstractMatrix{T}, opts::O=Options()) where {T, O <: Options}
-    D, N = size(pts)
-    dimcheck(D, N)
-
-    v = dropdims(reinterpret(SVector{D, T}, pts), dims=1)
-
-    return _quickhull(v, Val(D), opts)
-end
-
-function quickhull(pts::V, opts::O=Options()) where {V <: AbstractVector, O <: Options}
-    D, N = length(eltype(pts)), length(pts)
-    dimcheck(D, N)
-
-    return _quickhull(pts, Val(D), opts)
-end
-
-function _quickhull(pts::V, ::Val{D}, opts) where {V, D}
-    if opts.joggle
-        pts = joggle(pts, opts.joggle_amount)
-    end
-
-    simplex = goodsimplex(pts, Val(D), opts.indextype, opts.kernel)
-
-    hull, data = makesimplexhull(pts, simplex, Val(D), opts.indextype, opts.kernel)
+    hull, data = makesimplexhull(pts, simplex, I, K)
 
     while true
         head = hull.facets.working_list_head
@@ -469,5 +469,66 @@ function _quickhull(pts::V, ::Val{D}, opts) where {V, D}
 
     return hull
 end
+
+function _quickhull(pts::V, opts) where V
+    if opts.joggle
+        pts = joggle(pts, opts.joggle_amount)
+    end
+
+    if opts.subdivide isa SerialSubdivide || opts.subdivide isa ParallelSubdivide
+        return subhull_dc(pts, opts)
+    else
+        return _quickhull_main(pts, opts)
+    end
+end
+
+dimcheck(D, N) = (N < D+1) && throw(ArgumentError("Need at least $(D+1) points in $D dimensions (got $N points)"))
+
+"""
+    quickhull(points, options=Quickhull.Options())
+
+Compute the convex hull of `points`. `points` can be a vector of
+point-like objects (e.g. `Tuple` or `StaticVector`) or a (D, N) sized matrix
+of numbers.
+
+See documentation for `Quickhull.Options`.
+"""
+function quickhull(pts::AbstractMatrix{T}, opts::O=Options()) where {T, O <: Options}
+    D, N = size(pts)
+    dimcheck(D, N)
+
+    v = dropdims(reinterpret(SVector{D, T}, pts), dims=1)
+
+    return _quickhull(v, opts)
+end
+
+function quickhull(pts::V, opts::O=Options()) where {V <: AbstractVector, O <: Options}
+    D, N = length(eltype(pts)), length(pts)
+    dimcheck(D, N)
+
+    return _quickhull(pts, opts)
+end
+
+"""
+    points(hull)
+
+The points the hull was constructed from. This includes points
+inside the hull - see `vertices(hull)`.
+"""
+points(hull::AbstractHull) = error("unimplemented")
+
+"""
+    vertices(hull)
+
+The indices of points that are vertices of the hull.
+"""
+vertices(hull::AbstractHull) = error("unimplemented")
+
+"""
+    facets(hull)
+
+The facets of the hull. A facet is defined by D vertices.
+"""
+facets(hull::AbstractHull) = error("unimplemented")
 
 end # module Quickhull
