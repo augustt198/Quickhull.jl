@@ -8,6 +8,7 @@ using Base.Iterators
 using MacroTools
 using MappedArrays
 using SIMD
+using MultiFloats
 
 include("utils.jl")
 include("predicate.jl")

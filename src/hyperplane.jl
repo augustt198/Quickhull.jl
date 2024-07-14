@@ -258,7 +258,7 @@ function hyperplane_dist(plane::Hyperplane{D, I, HyperplaneKernelExactSIMD{T, Dp
     else
         mat = pointmatrix(pts, plane.point_indices)
         pt′ = SVector{D}(pt)
-        return vol_exact_slow(mat, pt′) * -k.sign
+        return vol_exact_multifloat(mat, pt′) * k.sign * (-1)^D # not sure why
     end
 end
 

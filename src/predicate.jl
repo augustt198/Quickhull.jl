@@ -12,7 +12,6 @@ function symbolic_det(rows, perm=false)
         if isnothing(expr)
             expr = :($sym * $ex)
         else
-            #expr = ifelse(isodd(i) || perm, :($expr + $sym * $ex), :($expr - $sym * $ex))
             expr = ifelse(isodd(i) || perm, :(muladd($sym, $ex, $expr)), :(muladd(-$sym, $ex, $expr)))
         end
     end
@@ -106,4 +105,40 @@ end
             end
         end)
     ex
+end
+
+
+# A MultiFloat that automatically extends its size so arithmetic is always exact.
+# Could still be optimized more
+struct ExactMultiFloat{T <: AbstractFloat, D} <: AbstractFloat
+    x::MultiFloat{T, D}
+end
+
+for op in (:+, :-)
+    @eval function Base.$op(a::ExactMultiFloat{T, D1}, b::ExactMultiFloat{T, D2}) where {T, D1, D2}
+        D = max(D1, D2) + 1
+        a′ = MultiFloat{T, D}(a.x)
+        b′ = MultiFloat{T, D}(b.x)
+        ExactMultiFloat($op(a′, b′))
+    end
+end
+
+Base.:-(a::ExactMultiFloat) = ExactMultiFloat(-a.x)
+
+function Base.:*(a::ExactMultiFloat{T, D1}, b::ExactMultiFloat{T, D2}) where {T, D1, D2}
+    D = D1 + D2
+    a′ = MultiFloat{T, D}(a.x)
+    b′ = MultiFloat{T, D}(b.x)
+    ExactMultiFloat(a′ * b′)
+end
+
+Base.muladd(a::ExactMultiFloat, b::ExactMultiFloat, c::ExactMultiFloat) = a * b + c
+
+function vol_exact_multifloat(mat::SMatrix{N, N, T}, pt::SVector{N, T}) where {N, T}
+    mat = ExactMultiFloat.(MultiFloat{T, 1}.(mat))
+    pt =  ExactMultiFloat.(MultiFloat{T, 1}.(pt))
+
+    M = mat .- pt
+    d = _det_expanded(M).x
+    return copysign(T(d), d)
 end
