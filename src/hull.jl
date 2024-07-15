@@ -136,12 +136,10 @@ end
 finished_facets(fl::FacetList) = filter(f -> isempty(f.above) && f.next_handle == FLAG_INDEX_DONE, fl.arr)
 
 @kwdef struct IterStat
-    nseen::Int
+    nvisible::Int
     nnew::Int
     ncands::Int
-    nmaxabovefacet::Int
-    marks::Vector{Int}
-    time::Int
+    duration_ns::Int
 end
 
 abstract type AbstractHull{D, T, I} end

@@ -13,7 +13,7 @@ Hull of 500 points in 3 dimensions
 
 julia> using GLMakie, GeometryBasics
 julia> wireframe(GeometryBasics.Mesh(hull))
-julia> scatter!(hull.pts, color=:black)
+julia> scatter!(points(hull), color=:black)
 ```
 
 <p align="center"><img src="img/hull.png" width="50%"></p>

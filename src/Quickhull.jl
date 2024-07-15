@@ -42,16 +42,23 @@ end
 
 Avaliable options are:
   - `kernel` -- a subtype of `HyperplaneKernel` used for hyperplane
-    calculations. `HyperplaneKernelExact_A` by default.
+    calculations. `HyperplaneKernelExactSIMD` by default.
   - `indextype` -- a subtype of `Integer` that specifies how vertex
     indices should be stored. `Int32` by default.
   - `joggle` -- whether to joggle the input points. `false` by default
-  - `joggle_amount` -- how much to joggle input points. `100.0` by default.
+  - `joggle_amount` -- how much to joggle the input points. `100.0` by default.
   - `statistics` -- whether to record statistics. `false` by default.
+  - `subdivide` -- controls whether hull is computed by subdividing the input
+    points and merging the resulting sub-hulls. Available options are:
+      * `NoSubdivide()` -- don't use subdivision (default).
+      * `SerialSubdivide(chunks=nchunks, levels=nlevels)` -- subdivide points into `nchunks` many chunks,
+        `nlevels` many times recursively. Not parallel.
+      * `ParallelSubdivide(chunks=nchunks, levels=nlevels)` -- subdivide points into `nchunks` many chunks,
+        `nlevels` many times recursively. Sub-hulls are computed in parallel.
 """
 @kwdef struct Options{K <: HyperplaneKernel, I <: Integer, SubdivOpt <: SubdivideOption}
     # numerical kernel used for plane calculations
-    kernel::Type{K} = HyperplaneKernelExact_A
+    kernel::Type{K} = HyperplaneKernelExactSIMD
 
     # integer type used as indices
     indextype::Type{I} = Int32
@@ -68,7 +75,8 @@ Avaliable options are:
     statistics::Bool = false
 
     # mostly just have animations in mind
-    iteration_callback::Any = nothing
+    pre_iteration_callback::Any = nothing
+    post_iteration_callback::Any = nothing
 end
 
 function Base.show(io::IO, ::MIME"text/plain", opts::Options)
@@ -265,7 +273,6 @@ struct IterData{D, T, I, K}
     newfacets   ::Vector{Facet{D, I, K}}
     cands       ::Vector{I}
     newplanes   ::Vector{Hyperplane{D, I, K}}
-    maxidx      ::Vector{I}
     maxdist     ::Vector{T}
 
     function IterData{D, T, I, K}() where {D, T, I, K}
@@ -319,7 +326,9 @@ end
 
 # Do an iteration of quickhull: insert the point furthest
 # above `facet` into the hull.
-function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
+function iter(hull::Hull{D, T, I, K, V}, facet, data, opts) where {D, T, I, K, V}
+    time_start = time_ns()
+
     furthest_pt_idx = facet.furthest_above_point
     furthest_pt = hull.pts[furthest_pt_idx]
 
@@ -416,6 +425,7 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
     # point sets of the previously allocated facets can
     # be clobbered
     itr = Iterators.flatten(Iterators.map(f -> f.above, visible))
+    ncands = sum(f -> length(f.above), visible)
     mark_above(new_allocated, itr, hull.pts, data, true)
 
     foreach(f -> empty!(f.above), prev_allocated)
@@ -445,6 +455,17 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
     # we also need to fix facets that were below the horizon
     foreach(fixup_adj! ∘ last, horizon)
 
+    if opts.statistics
+        time_end = time_ns()
+        stat = IterStat(
+            nvisible    = length(visible),
+            nnew        = length(newfacets),
+            ncands      = ncands,
+            duration_ns = time_end - time_start
+        )
+        isnothing(hull.statistics) && (hull.statistics = IterStat[])
+        push!(hull.statistics, stat)
+    end
 end
 
 function _quickhull_main(pts::V, opts) where V
@@ -464,7 +485,11 @@ function _quickhull_main(pts::V, opts) where V
         end
 
         facet = hull.facets.arr[head]
-        iter(hull, facet, data)
+
+        !isnothing(opts.pre_iteration_callback) && opts.pre_iteration_callback(hull)
+        iter(hull, facet, data, opts)
+        !isnothing(opts.post_iteration_callback) && opts.post_iteration_callback(hull)
+
         clear_iterdata(data)
     end
 
