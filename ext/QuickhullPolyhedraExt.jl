@@ -90,7 +90,7 @@ function quickhull_backend(h::Polyhedra.MixedMatVRep{T}, solver) where T
     N = Polyhedra.fulldim(h)
 
     planes = map(facets(ch)) do facet
-        Quickhull.Hyperplane(facet, ch.pts, Quickhull.HyperplaneKernelInexact)
+        Quickhull.Hyperplane(SVector(facet), ch.pts, Quickhull.HyperplaneKernelInexact)
     end
 
     #A = ch.facets[:, 1:N]
@@ -132,7 +132,7 @@ function quickhull_backend(h::Polyhedra.MixedMatHRep{T}, solver) where {T<:Real}
     hnored = Polyhedra.hrep(C, ones(size(C, 1)))
     #Vlift = ch.facets
     Vlift_pts = Iterators.map(facets(ch)) do facet
-        plane = Quickhull.Hyperplane(facet, ch.pts, Quickhull.HyperplaneKernelInexact)
+        plane = Quickhull.Hyperplane(SVector(facet), ch.pts, Quickhull.HyperplaneKernelInexact)
         pt = push(plane.kernel.normal, -plane.kernel.offset)
         transpose(pt)
     end
@@ -159,10 +159,10 @@ function quickhull_backend(h::Polyhedra.MixedMatHRep{T}, solver) where {T<:Real}
     for i in 1:nvreps
         if i in irays
             nr += 1
-            R[nr, :] = -@view Vlift[i, 1:N]
+            R[nr, :] = @view Vlift[i, 1:N]
         else
             nv += 1
-            V[nv, :] = -(@view Vlift[i, 1:N]) / Vlift[i, N+1]
+            V[nv, :] = (@view Vlift[i, 1:N]) / Vlift[i, N+1]
         end
     end
     v = Polyhedra.vrep(V, R)
