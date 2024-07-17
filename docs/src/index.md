@@ -27,7 +27,7 @@ facets(::Quickhull.AbstractHull)
 ```
 
 ```@docs
-Quickhull.GeometryBasics.Mesh(::Quickhull.AbstractHull)
+GeometryBasics.Mesh(::Quickhull.AbstractHull)
 ```
 
 ```@docs

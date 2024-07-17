@@ -1,4 +1,4 @@
-using Documenter, Quickhull
+using Documenter, Quickhull, GeometryBasics
 
 makedocs(sitename="Quickhull.jl")
 
