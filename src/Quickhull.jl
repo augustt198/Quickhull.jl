@@ -519,7 +519,7 @@ of numbers.
 
 See documentation for `Quickhull.Options`.
 """
-function quickhull(pts::AbstractMatrix{T}, opts::O=Options()) where {T, O <: Options}
+function quickhull(pts::AbstractMatrix{T}, opts::O=Options()) where {T <: AbstractFloat, O <: Options}
     D, N = size(pts)
     dimcheck(D, N)
 
@@ -531,6 +531,9 @@ end
 function quickhull(pts::V, opts::O=Options()) where {V <: AbstractVector, O <: Options}
     D, N = length(eltype(pts)), length(pts)
     dimcheck(D, N)
+
+    T = eltype(eltype(V))
+    !(T <: AbstractFloat) && throw(ArgumentError("Expected float type, got $T"))
 
     return _quickhull(pts, opts)
 end
