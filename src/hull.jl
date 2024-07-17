@@ -144,6 +144,11 @@ end
 
 abstract type AbstractHull{D, T, I} end
 
+"""
+    GeometryBasics.Mesh(hull::Quickhull.AbstractHull)
+
+Create a `Mesh` from the points and facets of `hull`.
+"""
 function GeometryBasics.Mesh(hull::AbstractHull)
     GeometryBasics.Mesh(points(hull), facets(hull))
 end
