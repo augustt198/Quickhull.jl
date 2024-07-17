@@ -560,4 +560,17 @@ The facets of the hull. A facet is defined by D vertices.
 """
 facets(hull::AbstractHull) = error("unimplemented")
 
+"""
+    PolyhedraLibrary(solver)
+
+Create an instance of a `Polyhedra.Library` with the given
+solver that uses `quickhull` as a backend. Requires the
+Polyhedra package to be loaded.
+"""
+function PolyhedraLibrary(solver)
+    ext = Base.get_extension(Quickhull, :QuickhullPolyhedraExt)
+    isnothing(ext) && error("Polyhedra extension not loaded")
+    return ext.Library(solver)
+end
+
 end # module Quickhull
