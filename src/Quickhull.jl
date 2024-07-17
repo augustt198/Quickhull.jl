@@ -113,7 +113,7 @@ function makesimplexhull(pts::V, simp, I, K) where V
     mark_above(simplex_facets, 1:size(pts, 1), pts, data, false)
     foreach(f -> push_hull_facet!(hull.facets, f), simplex_facets)
 
-    center = sum(pts[simp]) / length(simp)
+    center = reduce(.+, pts[simp]) ./ length(simp)
     hull.interior_pt = center
 
     for f in hull.facets
@@ -529,7 +529,7 @@ function quickhull(pts::AbstractMatrix{T}, opts::O=Options()) where {T <: Abstra
 end
 
 function quickhull(pts::V, opts::O=Options()) where {V <: AbstractVector, O <: Options}
-    D, N = length(eltype(pts)), length(pts)
+    D, N = length(first(pts)), length(pts)
     dimcheck(D, N)
 
     T = eltype(eltype(V))
