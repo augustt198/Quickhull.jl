@@ -96,8 +96,7 @@ function makesimplexhull(pts::V, simp, I, K) where V
 
     data = IterData{D, T, I, K′}()
 
-    simplex_facets = Facet{D, I, K′}[]
-    for (i, pt_idx) in enumerate(simp)
+    simplex_facets = map(enumerate_static(simp)) do (i, pt_idx)
         apex = pts[pt_idx]
 
         indices = simp[(1:i-1) ∪ (i+1:end)]
@@ -106,11 +105,11 @@ function makesimplexhull(pts::V, simp, I, K) where V
 
         facet = Facet(plane)
         facet.adj = (1:i-1) ∪ (i+1:D+1)
-        push!(simplex_facets, facet)
+        return facet
     end
 
     # initialize above point sets for the simplex facets
-    mark_above(simplex_facets, 1:size(pts, 1), pts, data, false)
+    mark_above(simplex_facets, I(1):I(size(pts, 1)), pts, data, false)
     foreach(f -> push_hull_facet!(hull.facets, f), simplex_facets)
 
     center = reduce(.+, pts[simp]) ./ length(simp)
