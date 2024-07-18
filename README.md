@@ -1,5 +1,8 @@
 # Quickhull.jl
 
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://augustt198.github.io/Quickhull.jl/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://augustt198.github.io/Quickhull.jl/dev)
+
 The quickhull algorithm in pure Julia for finding
 convex hulls, Delaunay triangulations, and Voronoi diagrams in N dimensions.
 
