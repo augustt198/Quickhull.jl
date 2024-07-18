@@ -1,18 +1,36 @@
 # A point lifted into D+1 dimensions
-struct LiftedPoint{P, T} <: AbstractVector{T}
+struct LiftedPoint{D, P, T} <: StaticVector{D, T}
     point::P
     lifted_coord::T
+
+    LiftedPoint(p, lc) = new{length(p)+1, typeof(p), typeof(lc)}(p, lc)
+
+    LiftedPoint{D, P, T}(tup) where {D, P, T} = LiftedPoint(P(tup[1:end-1]), tup[end])
 end
 
-Base.eltype(::Type{LiftedPoint{P, T}}) where {P, T} = T
-Base.length(::Type{LiftedPoint{P, T}}) where {P, T} = length(P) + 1
-Base.size(::Type{LiftedPoint{P, T}}) where {P, T} = (length(P) + 1,)
-Base.size(pt::LiftedPoint) = size(typeof(pt))
+Base.Tuple(lp::LiftedPoint) = (lp.point..., lp.lifted_coord)
 
-function Base.getindex(lp::LiftedPoint{P, T}, idx::Integer) where {P, T}
-    @boundscheck !(1 <= idx <= length(P) + 1) && throw(BoundsError(lp, idx))
+function StaticArrays.similar_type(::Type{LiftedPoint{D, P, T}}, et::Type{NewElType}, ::Size{S}) where {D, P, T, NewElType, S}
+    if length(S) == 1
+        LiftedPoint{S[1], similar_type(P, et, Size(S[1]-1)), NewElType}
+    else
+        error("unimplemented")
+    end
+end
 
-    if idx <= length(P)
+# todo: stop the piracy
+function StaticArrays.similar_type(::Type{NTuple{N, T}}, ::Type{NewElType}, ::Size{S}) where {N, T, NewElType, S}
+    if length(S) == 1
+        NTuple{S[1], NewElType}
+    else
+        error("unimplemented")
+    end
+end
+
+function Base.getindex(lp::LiftedPoint{D, P, T}, idx::Int) where {D, P, T}
+    @boundscheck !(1 <= idx <= D) && throw(BoundsError(lp, idx))
+
+    if idx < D
         return @inbounds lp.point[idx]
     else
         return lp.lifted_coord
@@ -21,12 +39,13 @@ end
 
 # A vector of LiftedPoint, the lifted coordinates are stored
 # separately so the points being lifted don't need to be reallocated
-struct LiftedPoints{V, P, T} <: AbstractVector{LiftedPoint{P, T}}
+struct LiftedPoints{D, V, P, T} <: AbstractVector{LiftedPoint{D, P, T}}
     points::V
     lifted_coords::Vector{T}
 
     function LiftedPoints(points::AbstractVector{P}, lift=(pt) -> dot(pt, pt)) where {P}
-        lps = new{typeof(points), P, eltype(P)}(points, lift.(points))
+        D = length(first(points)) + 1
+        lps = new{D, typeof(points), P, eltype(P)}(points, lift.(points))
 
         # If the lifted coordinates are very similar, the interior
         # point computed by averaging the initial simplex vertices
@@ -40,9 +59,26 @@ struct LiftedPoints{V, P, T} <: AbstractVector{LiftedPoint{P, T}}
 
         return lps
     end
+
+    function LiftedPoints(points::AbstractVector{P}, lifted_coords::Vector{T}) where {P, T}
+        D = length(first(points)) + 1
+        new{D, typeof(points), P, T}(points, lifted_coords)
+    end
+end
+
+function Base.similar(lps::LiftedPoints, eltype::Type{LiftedPoint{D, Q, S}}, dims::Dims{1}) where {D, Q, S}
+    points = similar(lps.points, Q, dims)
+    lifted_coords = similar(lps.lifted_coords, S, dims)
+    LiftedPoints(points, lifted_coords)
 end
 
 Base.getindex(lps::LiftedPoints, idx::Integer) = LiftedPoint(lps.points[idx], lps.lifted_coords[idx])
+
+function Base.setindex!(lps::LiftedPoints, lp, i)
+    lps.points[i] = lp.point
+    lps.lifted_coords[i] = lp.lifted_coord
+end
+
 Base.size(lps::LiftedPoints) = size(lps.points)
 
 struct DelaunayHull{D, T, I, H <: Hull{D, T, I}} <: AbstractHull{D, T, I}
