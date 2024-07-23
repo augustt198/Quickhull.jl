@@ -27,12 +27,12 @@ abstract type SubdivideOption end
 
 struct NoSubdivide <: SubdivideOption end
 
-@kwdef struct ParallelSubdivide <: SubdivideOption
+Base.@kwdef struct ParallelSubdivide <: SubdivideOption
     chunks::Int = Threads.nthreads()
     levels::Int = 1
 end
 
-@kwdef struct SerialSubdivide <: SubdivideOption
+Base.@kwdef struct SerialSubdivide <: SubdivideOption
     chunks::Int = Threads.nthreads()
     levels::Int = 1
 end
@@ -56,7 +56,7 @@ Avaliable options are:
       * `ParallelSubdivide(chunks=nchunks, levels=nlevels)` -- subdivide points into `nchunks` many chunks,
         `nlevels` many times recursively. Sub-hulls are computed in parallel.
 """
-@kwdef struct Options{K <: HyperplaneKernel, I <: Integer, SubdivOpt <: SubdivideOption}
+Base.@kwdef struct Options{K <: HyperplaneKernel, I <: Integer, SubdivOpt <: SubdivideOption}
     # numerical kernel used for plane calculations
     kernel::Type{K} = HyperplaneKernelExactSIMD
 

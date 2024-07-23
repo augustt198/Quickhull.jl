@@ -135,7 +135,7 @@ end
 
 finished_facets(fl::FacetList) = filter(f -> isempty(f.above) && f.next_handle == FLAG_INDEX_DONE, fl.arr)
 
-@kwdef struct IterStat
+Base.@kwdef struct IterStat
     nvisible::Int
     nnew::Int
     ncands::Int
