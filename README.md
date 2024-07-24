@@ -31,9 +31,9 @@ julia> linesegments!(Axis(f[1,2]), voronoi_edge_points(tri), color=:red)
 <p align="center"><img src="img/tri.png" width="80%"></p>
 
 
-## QHull Comparison
+## Qhull Comparison
 
-Quickhull.jl is competetive with QHull's performance even
+Quickhull.jl is competetive with [Qhull](http://www.qhull.org/)'s performance even
 when exact arithmetic is used, although although it has fewer features.
 
 <p align="center"><img src="img/benchmark.png" width="80%"></p>
@@ -53,3 +53,9 @@ quickhull(pts, Quickhull.Options(kernel = Quickhull.HyperplaneKernelInexact))
 It should be noted that if an inexact kernel is used – particularly
 on inputs with coplanar or nearly coplanar points – the topology of the
 hull can be become corrupted and an error will probably occur.
+
+## Related Packages
+- [QHull.jl](https://github.com/JuliaPolyhedra/QHull.jl), [DirectQHull.jl](https://github.com/JuhaHeiskala/DirectQhull.jl/) – wrappers for [Qhull](http://www.qhull.org/)
+- [DelaunayTriangulation.jl](https://github.com/JuliaGeometry/DelaunayTriangulation.jl) – 2D Delaunay triangulation and Voronoi tesselation with many features
+- [TetGen.jl](https://github.com/JuliaGeometry/TetGen.jl) – wrapper for 3D Delaunay tetrahedralization
+library [TetGen](https://wias-berlin.de/software/index.jsp?id=TetGen&lang=1)
