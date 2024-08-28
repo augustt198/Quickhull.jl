@@ -397,6 +397,8 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data, opts) where {D, T, I, K, V
         
         # fix adjacency list of the facet not visible ("behind" the horizon)
         idx = findfirst(isequal(f.handle), h.adj)
+        isnothing(idx) && error("Topology of hull is corrupted, try using an exact kernel.")
+
         # since the new facets may not have a `handle` yet,
         # the index -i is taken to mean the ith facet in `newfacets`
         h.adj = setindex(h.adj, -i, idx)
