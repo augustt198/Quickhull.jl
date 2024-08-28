@@ -92,7 +92,7 @@ function delaunay_facets(dhull::DelaunayHull)
 
     return filter(hull.facets.arr) do facet
         D = length(first(hull.pts))
-        above_pt = sum(SVector{D}(hull.pts[i]) for i in facet.plane.point_indices) / D
+        above_pt = sum(hull.pts[i] for i in facet.plane.point_indices) / D
         above_pt = setindex(above_pt, above_pt[end] + 2maxlift, D)
         hyperplane_dist(facet.plane, above_pt, hull.pts) < 0
     end
