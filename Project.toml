@@ -23,7 +23,7 @@ QuickhullPolyhedraExt = "Polyhedra"
 [compat]
 julia = "1.8"
 Combinatorics = "1.0"
-GeometryBasics = "0.4"
+GeometryBasics = "0.4, 0.5"
 MacroTools = "0.5"
 MappedArrays = "0.4"
 MultiFloats = "2.0"
