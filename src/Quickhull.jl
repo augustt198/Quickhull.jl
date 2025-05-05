@@ -182,7 +182,7 @@ function goodsimplex(pts::V, I, K, nsamp=1000) where V
             end
         end
         if found == -1
-            throw(ArgumentError("All the points are coplanar. Try projecting into a lower dimension."))
+            throw(ArgumentError("All the points are coplanar. Try projecting into a lower dimension or using the joggle option."))
         end
 
         idxs = SVector{d, I}(simplex.point_indices..., found)
