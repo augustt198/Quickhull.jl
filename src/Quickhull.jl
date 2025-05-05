@@ -539,27 +539,6 @@ function quickhull(pts::V, opts::O=Options()) where {V <: AbstractVector, O <: O
     return _quickhull(pts, opts)
 end
 
-"""
-    points(hull)
-
-The points the hull was constructed from. This includes points
-inside the hull - see `vertices(hull)`.
-"""
-points(hull::AbstractHull) = error("unimplemented")
-
-"""
-    vertices(hull)
-
-The indices of points that are vertices of the hull.
-"""
-vertices(hull::AbstractHull) = error("unimplemented")
-
-"""
-    facets(hull)
-
-The facets of the hull. A facet is defined by D vertices.
-"""
-facets(hull::AbstractHull) = error("unimplemented")
 
 """
     PolyhedraLibrary(solver)

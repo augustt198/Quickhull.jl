@@ -1,3 +1,44 @@
+abstract type AbstractHull{D, T, I} end
+
+"""
+    points(hull)
+
+The points the hull was constructed from. This includes points
+inside the hull - see `vertices(hull)` and `vertexpoints(hull)`.
+"""
+points(hull::AbstractHull) = error("unimplemented")
+
+"""
+    vertices(hull)
+
+The indices of points that are vertices of the hull.
+"""
+vertices(hull::AbstractHull) = error("unimplemented")
+
+"""
+    vertexpoints(hull)
+
+The points that are vertices of the hull.
+"""
+vertexpoints(hull::AbstractHull) = @view points(hull)[vertices(hull)]
+
+"""
+    facets(hull)
+
+The facets of the hull. A facet is defined by D vertices.
+"""
+facets(hull::AbstractHull) = error("unimplemented")
+
+"""
+    GeometryBasics.Mesh(hull::Quickhull.AbstractHull)
+
+Create a `Mesh` from the points and facets of `hull`.
+"""
+function GeometryBasics.Mesh(hull::AbstractHull)
+    GeometryBasics.Mesh(points(hull), facets(hull))
+end
+
+
 const NULL_INDEX        = -2
 const FLAG_INDEX_UNUSED = -3
 const FLAG_INDEX_DONE   = -4
@@ -140,17 +181,6 @@ Base.@kwdef struct IterStat
     nnew::Int
     ncands::Int
     duration_ns::Int
-end
-
-abstract type AbstractHull{D, T, I} end
-
-"""
-    GeometryBasics.Mesh(hull::Quickhull.AbstractHull)
-
-Create a `Mesh` from the points and facets of `hull`.
-"""
-function GeometryBasics.Mesh(hull::AbstractHull)
-    GeometryBasics.Mesh(points(hull), facets(hull))
 end
 
 mutable struct Hull{D, T <: Number, I <: Integer, K, V <: AbstractVector} <: AbstractHull{D, T, I}
