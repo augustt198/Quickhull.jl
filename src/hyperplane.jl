@@ -132,7 +132,8 @@ function make_kernel(::Type{K}, point_indices::SVector{D, I}, pts::AbstractVecto
         # drop ith index
         ind = SVector{D}(j >= i ? j+1 : j for j = 1:D)
         cut = mat′[:, ind]
-        d = (-1)^(i+1) * _det_expanded(cut)
+        sgn = iseven(i) ? -1 : 1 # (-1)^(i+1)
+        d = sgn * _det_expanded(cut)
         p = _perm_expanded(cut)
         return d, p
     end
