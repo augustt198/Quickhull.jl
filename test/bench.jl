@@ -64,4 +64,41 @@ function bench()
     fig
 end
 
-bench()
+function bench_parallel()
+    sample_ranges = Dict(
+        sampleball => [100_000, 1_000_000, 10_000_000],
+    )
+
+    fig = Figure()
+    ax1 = Axis(fig[1, 1], title="3 Dimensions", xscale=log10)
+
+    for (D, ax) in zip((3,), (ax1,))
+        for (sample_func, Ns) in sample_ranges
+            println("Running $(D)D $sample_func with $Ns points")
+            data = map(Ns) do N
+                opts = Quickhull.Options()
+                res = @benchmark quickhull(pts, $opts) setup=(Random.seed!(1001); pts=$sample_func($N, $D))
+                median(res).time / 1e9
+            end
+            data_par = map(Ns) do N
+                println(N)
+                opts = Quickhull.Options(subdivide=Quickhull.ParallelSubdivide())
+                res = @benchmark quickhull(pts, $opts) setup=(Random.seed!(1001); pts=$sample_func($N, $D))
+                median(res).time / 1e9
+            end
+
+            marker = MARKER_DICT[sample_func]
+            line = scatterlines!(ax, Ns, data, label="$(string(sample_func)[7:end]) (serial)", marker=marker)
+            scatterlines!(ax, Ns, data_par, label="$(string(sample_func)[7:end]) (parallel)", color=line.color, linestyle=:dot, marker=marker)
+        end
+    end
+
+    Label(fig[1:2,0], "Time", rotation=pi/2)
+    Label(fig[3,:], "Number of points")
+    fig[1:2,2] = Legend(fig, ax1, "Test case")
+
+    fig
+end
+
+#bench()
+bench_parallel()
