@@ -1,12 +1,13 @@
 using Test
 using Quickhull
 
-import QHull
-import Conda
 import GeometryBasics
 import Random
 
+import Conda
 Conda.add("scipy")
+
+import QHull
 
 include("utils.jl")
 
