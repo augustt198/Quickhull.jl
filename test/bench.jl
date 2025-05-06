@@ -99,6 +99,3 @@ function bench_parallel()
 
     fig
 end
-
-#bench()
-bench_parallel()
