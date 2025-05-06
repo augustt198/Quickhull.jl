@@ -47,7 +47,7 @@ end
 
 const ε = Polynomial([0, 1])
 
-function symbolic_det_relative_error(N, base=ε, ε_val=big(rationalize(eps())))
+function symbolic_det_relative_error(N, base=ε, ε_val=exactify(eps()))
     N == 1 && return base
 
     expr = nothing
@@ -69,12 +69,12 @@ function symbolic_det_relative_error(N, base=ε, ε_val=big(rationalize(eps())))
 end
 
 function detn_exact_slow(mat::SMatrix{N, N, T}) where {N, T}
-    d = det(exactify(mat))
+    d = det(exactify.(mat))
     return copysign(T(d), d)
 end
 
 function vol_exact_slow(mat::SMatrix{N, N, T}, pt::SVector{N, T}) where {N, T}
-    d = det(exactify(mat) .- exactify(pt))
+    d = det(exactify.(mat) .- exactify.(pt))
     return copysign(T(d), d)
 end
 
@@ -87,10 +87,10 @@ end
     mat2 = [[:(abs( $(Symbol(:a, i, j)) )) for j = 1:N] for i = 1:N]
     res_det = symbolic_det(mat1)
     res_perm = symbolic_permanent(mat2)
-    ε_val = big(rationalize(eps(T)))
+    ε_val = exactify(eps(T))
     poly = symbolic_det_relative_error(N, ε, ε_val)
-    rel = (poly * (1 + ε))(big(rationalize(eps())))
-    rel_f = Float64(rel)
+    rel = (poly * (1 + ε))(ε_val)
+    rel_f = T(rel)
 
     ex = Expr(:block,
         :(M = mat .- pt),

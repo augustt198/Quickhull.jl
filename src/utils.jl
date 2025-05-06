@@ -20,7 +20,7 @@ joggle(points, amt) = map(points) do pt
     pt + T(amt) * (2rand(T) - 1) * eps.(pt)
 end
 
-@inline exactify(x) = big.(rationalize.(x, tol=0))
+@inline exactify(x) = big(rationalize(x, tol=0))
 
 droplast(x; dims=(ndims(x),)) = _droplast(x, dims)
 

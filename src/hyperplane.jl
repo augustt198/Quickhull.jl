@@ -69,7 +69,7 @@ function hyperplane_dist(plane::Hyperplane{D, I, K}, pt, pts) where {D, I, K <: 
     if size(k.mat, 1) == size(k.mat, 2)
         return vol_exact(k.mat, pt′) * k.sign
     else
-        M_big = exactify(k.mat) .- exactify(pt′)
+        M_big = exactify.(k.mat) .- exactify.(pt′)
         det_big = det(M_big' * M_big) # this is always nonnegative
         return sqrt(eltype(k.mat)(det_big)) * k.sign
     end
@@ -93,7 +93,7 @@ end
 
 @generated function det_using_minors_relerror(::Val{D}, ::Type{T}) where {D, T}
     ε = Polynomial([0, 1])
-    ε_val = big(rationalize(eps(T)))
+    ε_val = exactify(eps(T))
     mul_term_err = ε + (1 + ε)*symbolic_det_relative_error(D-1, 0, ε_val)
 
     cum_err = mul_term_err
