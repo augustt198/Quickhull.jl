@@ -2,8 +2,11 @@ using Test
 using Quickhull
 
 import QHull
+import Conda
 import GeometryBasics
 import Random
+
+Conda.add("scipy")
 
 include("utils.jl")
 
