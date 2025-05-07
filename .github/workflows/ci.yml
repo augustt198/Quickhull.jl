@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - ci-test
     tags: "*"
   pull_request:
     branches:
@@ -29,6 +30,10 @@ jobs:
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
+      - name: Python installs
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install python3-scipy
+
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
