@@ -556,4 +556,6 @@ function PolyhedraLibrary(solver)
     return ext.Library(solver)
 end
 
+include("precompile.jl")
+
 end # module Quickhull
