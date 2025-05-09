@@ -12,8 +12,15 @@ MappedArrays = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
 MultiFloats = "bdf0d083-296b-4888-a5b6-7498122e68a5"
 Polyhedra = "67491407-f73d-577b-9b50-8179a7c68029"
 Polynomials = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 SIMD = "fdea26ae-647d-5447-a871-4b548cad5224"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[weakdeps]
+Polyhedra = "67491407-f73d-577b-9b50-8179a7c68029"
+
+[extensions]
+QuickhullPolyhedraExt = "Polyhedra"
 
 [compat]
 Combinatorics = "1.0"
@@ -21,14 +28,9 @@ GeometryBasics = "0.4, 0.5"
 MacroTools = "0.5"
 MappedArrays = "0.4"
 MultiFloats = "2.0"
+Polyhedra = "0.7"
 Polynomials = "1, 2, 3, 4"
+PrecompileTools = "1.2.1"
 SIMD = "3.5"
 StaticArrays = "1.9"
-Polyhedra = "0.7"
 julia = "1.8"
-
-[extensions]
-QuickhullPolyhedraExt = "Polyhedra"
-
-[weakdeps]
-Polyhedra = "67491407-f73d-577b-9b50-8179a7c68029"
