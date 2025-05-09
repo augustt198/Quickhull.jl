@@ -464,7 +464,6 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data, opts) where {D, T, I, K, V
             ncands      = ncands,
             duration_ns = time_end - time_start
         )
-        isnothing(hull.statistics) && (hull.statistics = IterStat[])
         push!(hull.statistics, stat)
     end
 end
@@ -476,6 +475,10 @@ function _quickhull_main(pts::V, opts) where V
     simplex = goodsimplex(pts, I, K)
 
     hull, data = makesimplexhull(pts, simplex, I, K)
+
+    if opts.statistics
+        hull.statistics = sizehint!(IterStat[], length(pts) ÷ 128)
+    end
 
     while true
         head = hull.facets.working_list_head
