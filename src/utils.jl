@@ -37,5 +37,5 @@ Base.@constprop :aggressive function _droplast(x, dims)
             return (:)
         end
     end
-    view(x, indices...)
+    return x isa Array ? view(x, indices...) : x[indices...]
 end
