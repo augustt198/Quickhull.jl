@@ -43,24 +43,18 @@ function circumsphere(pts)
     D = length(first(pts))
     @assert n == D + 1
 
-    # build matrix for Cayley-Menger determinant
-    M = zero(SMatrix{D+1, D+1})
-    for i = 1:n
-        for j = 1:(i-1)
-            diff = pts[i] .- pts[j]
-            d² = dot(diff, diff)
-            M = setindex(M, d², i, j)
-            M = setindex(M, d², j, i)
+    A = zero(SMatrix{D, D})
+    b = zero(SVector{D})
+    for i = 1:D
+        for j = 1:D
+            a_ij = pts[n][j] - pts[i][j]
+            A = setindex(A, 2a_ij, i, j)
         end
+        rhs = dot(pts[n], pts[n]) - dot(pts[i], pts[i])
+        b = setindex(b, rhs, i)
     end
 
-    x = M \ ones(SVector{D+1})
-    inv_2R² = sum(x)
-    # normalize to find barycentric coords
-    bary = x ./ inv_2R²
-
-    # convert to cartesian
-    center = sum(i -> bary[i] * pts[i], 1:(D+1))
-    radius = sqrt(inv(inv_2R²) / 2)
-    return center, radius
+    center = A \ b
+    radius = norm(center - pts[n])
+    return Point(center...), radius
 end
