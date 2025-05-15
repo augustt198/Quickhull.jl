@@ -187,15 +187,15 @@ mutable struct Hull{D, T <: Number, I <: Integer, K, V <: AbstractVector} <: Abs
     pts::V
     facets::FacetList{D, I, K}
     vertices::Union{Vector{I}, Nothing}
-    interior_pt::SVector{D, T}
+    approx_interior_pt::SVector{D, T}
 
     statistics::Union{Nothing, Vector{IterStat}}
 
-    Hull(pts::V, interior_pt::SVector{D, T}, ::Type{I}, ::Type{K}) where {D, T, I, K, V} = new{D, T, I, K, V}(
+    Hull(pts::V, approx_interior_pt::SVector{D, T}, ::Type{I}, ::Type{K}) where {D, T, I, K, V} = new{D, T, I, K, V}(
         pts,
         FacetList{D, I, K}(),
         nothing,
-        interior_pt,
+        approx_interior_pt,
         nothing
     )
 end

@@ -112,15 +112,10 @@ function makesimplexhull(pts::V, simp, I, K) where V
     mark_above(simplex_facets, I(1):I(size(pts, 1)), pts, data, false)
     foreach(f -> push_hull_facet!(hull.facets, f), simplex_facets)
 
-    center = reduce(.+, pts[simp]) ./ length(simp)
-    hull.interior_pt = center
-
-    for f in hull.facets
-        dist = hyperplane_dist(f.plane, hull.interior_pt, pts)
-        if dist >= 0
-            error("Interior point wasn't actually inside hull (todo fix)")
-        end
-    end
+    # this point may not truly be in the interior, so it can't
+    # be used for determining facet orientations. However, it can
+    # still be useful, e.g. for calculating volume.
+    hull.approx_interior_pt = reduce(.+, pts[simp]) ./ length(simp)
     
     return hull, data
 end
@@ -251,18 +246,21 @@ function insertadj(v, x)
 end
 
 # find the point indices that define the ridge shared by planes x and y.
-# assumes x and y only differ by one point
-@generated function ridgepoints(x::SVector{D, I}, y::SVector{D, I}) where {D, I}
+# assumes x and y only differ by one point. Also returns the index that is
+# the apex of x, i.e. not shared with y.
+@generated function ridgepoints_and_apex(x::SVector{D, I}, y::SVector{D, I}) where {D, I}
     body = map(1:D) do i
         index = (1:i-1) ∪ (i+1:D)
-        :( (x[$i] ∉ y) && return x[SVector{D-1}($(index...))] )
+        :( (x[$i] ∉ y) && return x[SVector{D-1}($(index...))], x[$i] )
     end
 
     Expr(:block,
         body...,
-        :(return zeros(SVector{D-1, I}))
+        :(return zeros(SVector{D-1, I}), zero(eltype(x)))
     )
 end
+
+ridgepoints(x, y) = ridgepoints_and_apex(x, y)[1]
 
 # So we don't reallocate these for every iteration
 struct IterData{D, T, I, K}
@@ -364,10 +362,10 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data, opts) where {D, T, I, K, V
     for (i, (f, h)) in enumerate(horizon)
         # the D-1 point ridge where f and h meet
         # ie: ridge = f.plane.point_indices ∩ h.plane.point_indices
-        ridge = ridgepoints(f.plane.point_indices, h.plane.point_indices)
+        ridge, apex = ridgepoints_and_apex(h.plane.point_indices, f.plane.point_indices)
         newplane = Hyperplane(SVector{D}(ridge..., furthest_pt_idx), hull.pts, K)
         # make it face outwards
-        newplane = hyperplane_awayfrom(newplane, hull.interior_pt, hull.pts)
+        newplane = hyperplane_awayfrom(newplane, hull.pts[apex], hull.pts)
 
         # We need to compute all the new planes before assigning
         # the planes to facets because we're reusing facets
