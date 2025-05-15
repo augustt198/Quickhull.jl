@@ -200,12 +200,6 @@ function simplexvolume(pts)
     end
 end
 
-# Compute the arithmetic center of the hull's vertices
-function center_average(hull)
-    vs = vertices(hull)    
-    return sum(hull.pts[i] for i in vs) / length(vs)
-end
-
 # Compute the area and volume of the hull.
 # Area is found by summing the area of each simplex.
 # Volume is found by summing the volume of pyramids,
@@ -213,7 +207,7 @@ end
 # interior point. The volume of each pyramid is then
 # (facet area)*(height to apex)/dimension.
 function areavol(hull::Hull{D, T}) where {D, T}
-    c = center_average(hull)
+    c = hull.approx_interior_pt
     
     areavol = sum(hull.facets) do f
         area = simplexvolume(pts[f.plane.point_indices])
