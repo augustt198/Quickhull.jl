@@ -101,7 +101,7 @@ end
             if abs(_det) > $rel_f * _perm
                 return _det
             else
-                vol_exact_slow(mat, pt)
+                vol_exact_multifloat(mat, pt)
             end
         end)
     ex
