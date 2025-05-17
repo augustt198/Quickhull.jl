@@ -1,7 +1,7 @@
 using Test
 using Quickhull
 
-import GeometryBasics
+using GeometryBasics
 import Random
 
 import Conda
@@ -61,19 +61,40 @@ end
 @testset "inference" begin
     @inferred quickhull([(rand(), rand()) for i = 1:100])
     @inferred quickhull([rand(SVector{3}) for i = 1:100])
-    @inferred quickhull([rand(GeometryBasics.Point3f) for i = 1:100])
+    @inferred quickhull([rand(Point3f) for i = 1:100])
 
-    hull = quickhull([rand(GeometryBasics.Point3f) for i = 1:100])
+    hull = quickhull([rand(Point3f) for i = 1:100])
     @inferred points(hull)
     @inferred vertices(hull)
     @inferred facets(hull)
 
     @inferred delaunay([(rand(), rand()) for i = 1:100])
     @inferred delaunay([rand(SVector{3}) for i = 1:100])
-    @inferred delaunay([rand(GeometryBasics.Point3f) for i = 1:100])
+    @inferred delaunay([rand(Point3f) for i = 1:100])
 
-    tri = delaunay([rand(GeometryBasics.Point2f) for i = 1:100])
+    tri = delaunay([rand(Point2f) for i = 1:100])
     @inferred points(tri)
     @inferred vertices(tri)
     @inferred facets(tri)
+end
+
+@testset "robustness" begin
+    nf0 = nextfloat(0.0)
+    ϵ = eps()
+
+    pts_2d = [Point(-10.0, 0.0), Point(0.0, nf0), Point(10.0, 0.0)]
+    @test Set(vertices(quickhull(pts_2d))) == Set([1, 2, 3])
+
+    pts_2d = [Point(-10.0, 0.0), Point(0.0, nf0), Point(0.0, nextfloat(0.0, 2)), Point(10.0, 0.0)]
+    @test Set(vertices(quickhull(pts_2d))) == Set([1, 3, 4])
+    
+    pts_2d = [Point(1.0, 1.0), Point(1.0+ϵ, 1.0), Point(1.0, 1.0+ϵ), Point(1.0+ϵ, 1.0+ϵ)]
+    @test Set(vertices(quickhull(pts_2d))) == Set([1, 2, 3, 4])
+
+    h = 1e100
+    pts_2d = [Point(h, 1.0), Point(h+eps(h), 1.0), Point(h, 1.0+ϵ), Point(h+eps(h), 1.0+ϵ)]
+    @test Set(vertices(quickhull(pts_2d))) == Set([1, 2, 3, 4])
+
+    pts_3d = [Point(1.0, 1.0, 1.0), Point(1.0+ϵ, 1.0, 1.0), Point(1.0, 1.0+ϵ, 1.0), Point(1.0, 1.0, 1.0+ϵ)]
+    @test Set(vertices(quickhull(pts_3d))) == Set([1, 2, 3, 4])
 end
