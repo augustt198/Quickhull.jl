@@ -5,23 +5,24 @@ struct LiftedPoint{D, P, T} <: StaticVector{D, T}
 
     LiftedPoint(p, lc) = new{length(p)+1, typeof(p), typeof(lc)}(p, lc)
 
-    LiftedPoint{D, P, T}(tup) where {D, P, T} = LiftedPoint(P(tup[1:end-1]), tup[end])
+    function LiftedPoint{D, P, T}(tup::Tuple) where {D, P, T}
+        head..., last = tup
+        return LiftedPoint(P(head), last)
+    end
 end
 
 Base.Tuple(lp::LiftedPoint) = (lp.point..., lp.lifted_coord)
 
 function StaticArrays.similar_type(::Type{LiftedPoint{D, P, T}}, et::Type{NewElType}, ::Size{S}) where {D, P, T, NewElType, S}
     if length(S) == 1
-        LiftedPoint{S[1], similar_type(P, et, Size(S[1]-1)), NewElType}
-    else
-        error("unimplemented")
-    end
-end
-
-# todo: stop the piracy
-function StaticArrays.similar_type(::Type{NTuple{N, T}}, ::Type{NewElType}, ::Size{S}) where {N, T, NewElType, S}
-    if length(S) == 1
-        NTuple{S[1], NewElType}
+        # I'm thinking maybe we should just not deal with tuples
+        # acting as points and reinterpret them instead...
+        if P <: Tuple
+            Pnew = NTuple{S[1]-1, NewElType}
+            return LiftedPoint{S[1], Pnew, NewElType}
+        else
+            return LiftedPoint{S[1], similar_type(P, et, Size(S[1]-1)), NewElType}
+        end
     else
         error("unimplemented")
     end

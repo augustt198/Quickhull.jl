@@ -98,3 +98,8 @@ end
     pts_3d = [Point(1.0, 1.0, 1.0), Point(1.0+ϵ, 1.0, 1.0), Point(1.0, 1.0+ϵ, 1.0), Point(1.0, 1.0, 1.0+ϵ)]
     @test Set(vertices(quickhull(pts_3d))) == Set([1, 2, 3, 4])
 end
+
+using Aqua
+@testset "Aqua.jl" begin
+    Aqua.test_all(Quickhull)
+end

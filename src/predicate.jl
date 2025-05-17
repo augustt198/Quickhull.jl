@@ -112,6 +112,8 @@ end
 # Could still be optimized more
 struct ExactMultiFloat{T <: AbstractFloat, D} <: AbstractFloat
     x::MultiFloat{T, D}
+
+    ExactMultiFloat(x::MultiFloat{T, D}) where {T <: AbstractFloat, D} = new{T, D}(x)
 end
 
 for op in (:+, :-)
