@@ -6,7 +6,7 @@ struct LiftedPoint{D, P, T} <: StaticVector{D, T}
     LiftedPoint(p, lc) = new{length(p)+1, typeof(p), typeof(lc)}(p, lc)
 
     function LiftedPoint{D, P, T}(tup::Tuple) where {D, P, T}
-        head..., last = tup
+        head, last = tup[1:end-1], tup[end]
         return LiftedPoint(P(head), last)
     end
 end
