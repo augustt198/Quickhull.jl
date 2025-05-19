@@ -30,6 +30,30 @@ facets(::Quickhull.AbstractHull)
 GeometryBasics.Mesh(::Quickhull.AbstractHull)
 ```
 
+### Voronoi Utilities
+
+```@docs
+voronoi_centers
+```
+
+```@docs
+voronoi_edges
+```
+
+```@docs
+voronoi_edge_points
+```
+
+```@docs
+Quickhull.voronoi_edge_points_homogeneous
+```
+
+```@docs
+Quickhull.voronoi_edge_points_projected
+```
+
+### Extensions
+
 ```@docs
 Quickhull.PolyhedraLibrary
 ```
