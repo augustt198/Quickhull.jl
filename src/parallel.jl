@@ -1,18 +1,9 @@
-function merge_vertices(hulls)
-    vs_set = Set{Int}()
-    for (h, idxs) in hulls
-        for v in vertices(h)
-            push!(vs_set, idxs[v])
-        end
-    end
-    return vs_set
-end
-
 function subhull_dc(pts, opts)
-    _subhull_dc(pts, 1, length(pts), opts.subdivide.levels, opts)[1]
+    hull, _ = subhull_dc_recur(pts, 1, length(pts), opts.subdivide.levels, opts)
+    return hull
 end
 
-function _subhull_dc(pts, l, r, level, opts)
+function subhull_dc_recur(pts, l, r, level, opts)
     chunk_len = cld(r - l, opts.subdivide.chunks)
     chunk_starts = l:chunk_len:r
     tasks = map(chunk_starts) do base
@@ -26,16 +17,30 @@ function _subhull_dc(pts, l, r, level, opts)
             end
         else
             if opts.subdivide isa ParallelSubdivide
-                Threads.@spawn _subhull_dc(pts, l′, r′, level - 1, subdivopt)
+                Threads.@spawn subhull_dc_recur(pts, l′, r′, level - 1, opts)
             else
-                _subhull_dc(pts, l′, r′, level - 1, subdivopt)
+                subhull_dc_recur(pts, l′, r′, level - 1, opts)
             end
         end
     end
 
     hulls = fetch.(tasks)
 
-    vs = collect(merge_vertices(hulls))
+    vs = merge_vertices(hulls)
     hull_input = @view pts[vs]
     return _quickhull_main(hull_input, opts), vs
+end
+
+function merge_vertices(hulls)
+    vs = Int[]
+    vcount = sum(h -> length(vertices(h[1])), hulls)
+    sizehint!(vs, vcount)
+
+    for (h, idxs) in hulls
+        for v in vertices(h)
+            push!(vs, idxs[v])
+        end
+    end
+
+    return vs
 end
