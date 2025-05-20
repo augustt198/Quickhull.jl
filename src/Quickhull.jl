@@ -19,7 +19,7 @@ include("delaunay.jl")
 include("voronoi.jl")
 include("parallel.jl")
 
-export quickhull, delaunay,
+export quickhull, delaunay, quickhull_parallel
     facets, vertices, points,
     voronoi_centers, voronoi_edges, voronoi_edge_points
 
@@ -513,7 +513,9 @@ Compute the convex hull of `points`. `points` can be a vector of
 point-like objects (e.g. `Tuple` or `StaticVector`) or a (D, N)-sized matrix
 of numbers.
 
-See documentation for `Quickhull.Options`.
+See documentation for [`Quickhull.Options`](@ref). Note `options` is a positional argument,
+not a keyword argument: `quickhull(points, Quickhull.Options(...))` is the correct
+calling syntax.
 """
 function quickhull(pts::AbstractMatrix{T}, opts::O=Options()) where {T <: AbstractFloat, O <: Options}
     D, N = size(pts)
@@ -534,6 +536,26 @@ function quickhull(pts::V, opts::O=Options()) where {V <: AbstractVector, O <: O
     return _quickhull(pts, opts)
 end
 
+"""
+    quickhull_parallel(points, options=Quickhull.Options())
+
+Convenience function for running `quickhull` with the parallel
+subdivision option enabled.
+"""
+function quickhull_parallel(pts, addl_opts=Options())
+    opts = Options(
+        kernel          = addl_opts.kernel,
+        indextype       = addl_opts.indextype,
+        joggle          = addl_opts.joggle,
+        joggle_amount   = addl_opts.joggle_amount,
+        statistics      = addl_opts.statistics,
+        pre_iteration_callback = addl_opts.pre_iteration_callback,
+        post_iteration_callback = addl_opts.post_iteration_callback,
+        subdivide = ParallelSubdivide()
+    )
+
+    quickhull(pts, opts)
+end
 
 """
     PolyhedraLibrary(solver)
