@@ -111,9 +111,15 @@ Compute the d-dimensional Delaunay triangulation of `points`.
 `points` can be a vector of point-like objects (e.g. `Tuple` or
 `StaticVector`) or a (D, N)-sized matrix of numbers.
 
-The triangulation is found by lifting into (d+1) dimensions
+The triangulation is found by lifting into d+1 dimensions
 and taking the convex hull.
 """
-delaunay(pts, opts=Options()) = DelaunayHull(quickhull(LiftedPoints(pts), opts))
+function delaunay(pts, opts=Options())
+    if !(opts.subdivide isa NoSubdivide)
+        throw(ArgumentError("Using `delaunay` with subdivision is strictly slower than without subdivision."))
+    end
+
+    return DelaunayHull(quickhull(LiftedPoints(pts), opts))
+end
 
 delaunay(pts::Matrix, opts=Options()) = delaunay(matrix2points(pts), opts)

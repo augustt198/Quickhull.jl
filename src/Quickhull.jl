@@ -19,7 +19,7 @@ include("delaunay.jl")
 include("voronoi.jl")
 include("parallel.jl")
 
-export quickhull, delaunay, quickhull_parallel
+export quickhull, delaunay, quickhull_parallel,
     facets, vertices, points,
     voronoi_centers, voronoi_edges, voronoi_edge_points
 

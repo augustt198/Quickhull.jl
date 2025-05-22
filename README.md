@@ -54,6 +54,26 @@ It should be noted that if an inexact kernel is used – particularly
 on inputs with coplanar or nearly coplanar points – the topology of the
 hull can become corrupted, and an error will probably occur.
 
+## Parallelism
+
+`quickhull` can be run with multithreading by setting the `subdivide`
+option to `Quickhull.ParallelSubdivide()`, or using the shorthand
+`quickhull_parallel`. In some cases this can achieve a speedup almost
+linear in the number of threads.
+
+```julia
+julia> Threads.nthreads()
+8
+
+julia> pts = rand(3, 2_000_000);
+
+julia> @btime quickhull($pts);
+  141.327 ms (2331 allocations: 25.96 MiB)
+
+julia> @btime quickhull_parallel($pts);
+  23.656 ms (14629 allocations: 29.39 MiB)
+```
+
 ## Related Packages
 - [QHull.jl](https://github.com/JuliaPolyhedra/QHull.jl), [DirectQHull.jl](https://github.com/JuhaHeiskala/DirectQhull.jl/) – wrappers for [Qhull](http://www.qhull.org/)
 - [DelaunayTriangulation.jl](https://github.com/JuliaGeometry/DelaunayTriangulation.jl) – 2D Delaunay triangulation and Voronoi tesselation with many features
