@@ -4,8 +4,10 @@ using Quickhull
 using GeometryBasics
 import Random
 
-import Conda
-Conda.add("scipy")
+if !Sys.iswindows()
+    import Conda
+    Conda.add("scipy")
+end
 
 import QHull
 
