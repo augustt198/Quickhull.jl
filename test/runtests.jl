@@ -4,12 +4,26 @@ using Quickhull
 using GeometryBasics
 import Random
 
-import Conda
-Conda.add("scipy")
-
-import QHull
+import DirectQhull
 
 include("utils.jl")
+
+function hullcompare(my_hull, qhull_hull, only_test_verts=false)
+    verts_match = Set(vertices(my_hull)) == Set(qhull_hull.vertices)
+
+    if only_test_verts
+        @test verts_match
+        return
+    end
+
+    my_facets = Set(sort.(facets(my_hull)))
+    qhull_facets = reinterpret(eltype(my_facets), qhull_hull.simplices)[:]
+    qhull_facets = Set(sort.(qhull_facets))
+
+    facets_match = my_facets == qhull_facets
+
+    @test verts_match && facets_match
+end
 
 for D in (2, 3)
     @testset "$D-D hull" begin
@@ -25,28 +39,23 @@ for D in (2, 3)
                 for N in Ns
                     Random.seed!(1234)
                     pts = sample_func(N, D)
-                    pts_T = Matrix(pts')
 
-                    t1 = @elapsed begin
-                        my_hull = quickhull(pts, Quickhull.Options(kernel=Quickhull.HyperplaneKernelExactSIMD))
-                    end
-                    t2 = @elapsed begin
-                        their_hull = QHull.chull(pts_T)
-                    end
-                    my_facets = Quickhull.finished_facets(my_hull.facets)
+                    my_hull = quickhull(pts, Quickhull.Options(kernel=Quickhull.HyperplaneKernelExactSIMD))
+                    qhull_hull = DirectQhull.ConvexHull(pts)
 
-                    #println("Elapsed ($sample_func $D / $N): $t1 -- $t2     [$(length(my_facets)) facets] [$(size(their_hull.simplices))]")
-                    @test Set(vertices(my_hull)) == Set(their_hull.vertices)
+                    only_test_verts = sample_func == gridbox
+                    hullcompare(my_hull, qhull_hull, only_test_verts)
                 end
             end
         end
+
     end
 end
 
 @testset "kernels" begin
     Random.seed!(1234)
     pts = sampleball(100_000, 3)
-    their_hull = QHull.chull(Matrix(pts'))
+    their_hull = DirectQhull.ConvexHull(pts)
 
     Ks = (Quickhull.HyperplaneKernelInexact,
         Quickhull.HyperplaneKernelExact_A,
