@@ -317,7 +317,7 @@ end
 
 # Do an iteration of quickhull: insert the point furthest
 # above `facet` into the hull.
-function iter(hull::Hull{D, T, I, K, V}, facet, data, opts) where {D, T, I, K, V}
+function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
     time_start = time_ns()
 
     furthest_pt_idx = facet.furthest_above_point
@@ -448,16 +448,13 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data, opts) where {D, T, I, K, V
     # we also need to fix facets that were below the horizon
     foreach(fixup_adj! ∘ last, horizon)
 
-    if opts.statistics
-        time_end = time_ns()
-        stat = IterStat(
-            nvisible    = length(visible),
-            nnew        = length(newfacets),
-            ncands      = ncands,
-            duration_ns = time_end - time_start
-        )
-        push!(hull.statistics, stat)
-    end
+    time_end = time_ns()
+    return IterStat(
+        nvisible    = length(visible),
+        nnew        = length(newfacets),
+        ncands      = ncands,
+        duration_ns = time_end - time_start
+    )
 end
 
 function _quickhull_main(pts::V, opts) where V
@@ -483,7 +480,8 @@ function _quickhull_main(pts::V, opts) where V
         facet = hull.facets.arr[head]
 
         !isnothing(opts.pre_iteration_callback) && opts.pre_iteration_callback(hull)
-        iter(hull, facet, data, opts)
+        iterstat = iter(hull, facet, data)
+        opts.statistics && push!(hull.statistics, iterstat)
         !isnothing(opts.post_iteration_callback) && opts.post_iteration_callback(hull)
 
         clear_iterdata(data)

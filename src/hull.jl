@@ -52,7 +52,6 @@ const FLAG_INDEX_DONE   = -4
     # pointers for use as a linked list in FacetList
     prev_handle::Int
     next_handle::Int
-    marker::Int
 
     furthest_above_point::I
 
@@ -62,7 +61,7 @@ const FLAG_INDEX_DONE   = -4
     function Facet(plane::Hyperplane{D, I, K}) where {D, I, K}
         new{D, I, K}(
             plane, zero(SVector{D, I}),
-            NULL_INDEX, NULL_INDEX, NULL_INDEX,
+            NULL_INDEX, NULL_INDEX,
             0, -1)
     end
 end
@@ -79,7 +78,10 @@ mutable struct FacetList{D, I, K}
     working_list_head::Int
     unused_list_head::Int
 
-    FacetList{D, I, K}() where {D, I, K} = new{D, I, K}(Facet{D, K}[], NULL_INDEX, NULL_INDEX)
+    valid_handles::Bool
+    compacted::Bool
+
+    FacetList{D, I, K}() where {D, I, K} = new{D, I, K}(Facet{D, K}[], NULL_INDEX, NULL_INDEX, true, false)
 end
 
 function list_length(fl::FacetList, handle)
@@ -172,6 +174,30 @@ function compact_unused_facets!(fl::FacetList)
         end
     end
     resize!(fl.arr, i′ - 1)
+
+    fl.compacted = true
+    fl.valid_handles = false
+    return fl
+end
+
+function make_handles_valid!(fl::FacetList)
+    fl.valid_handles && return fl
+
+    handlemap = Dict{Int, Int}()
+    for (i, f) in enumerate(fl.arr)
+        handlemap[f.handle] = i
+        f.handle = i
+    end
+
+    for f in fl.arr
+        f.next_handle >= 1 && (f.next_handle = handlemap[f.next_handle])
+        f.prev_handle >= 1 && (f.prev_handle = handlemap[f.prev_handle])
+        
+        f.adj = map(h -> handlemap[h], f.adj)
+    end
+
+    fl.valid_handles = true
+    return fl
 end
 
 finished_facets(fl::FacetList) = filter(f -> isempty(f.above) && f.next_handle == FLAG_INDEX_DONE, fl.arr)
@@ -224,4 +250,60 @@ function vertices(hull::Hull)
 end
 
 points(hull::Hull) = mappedarray(pt -> Point(pt), hull.pts)
-facets(hull::Hull) = mappedarray(f -> NgonFace(f.plane.point_indices), hull.facets.arr)
+
+function facets(hull::Hull)
+    if !hull.facets.compacted
+        compact_unused_facets!(hull.facets)
+    end
+
+    return mappedarray(f -> NgonFace(f.plane.point_indices), hull.facets.arr)
+end
+
+function Base.insert!(hull::Hull{D, T, I, K, V}, pt) where {D, T, I, K, V}
+    facet = find_facet_below(hull, pt)
+    isnothing(facet) && return false
+
+    push!(hull.pts, pt)
+    pt_idx = lastindex(hull.pts)
+    push!(facet.above, pt_idx)
+    facet.furthest_above_point = pt_idx
+
+    data = IterData{D, T, I, K}()
+    iter(hull, facet, data)
+    hull.facets.compacted = false
+    return true
+end
+
+Base.in(pt, hull::Hull) = isnothing(find_facet_below(hull, pt))
+
+function find_facet_below(hull, pt)
+    make_handles_valid!(hull.facets)
+    facet = first(hull.facets.arr)
+
+    curr_dist = hyperplane_dist(facet.plane, pt, hull.pts)
+
+    iters, maxiters = 0, 1000
+    while curr_dist <= 0 && (iters += 1) <= maxiters
+        maximum_dist, idx = findmax(facet.adj) do h_handle
+            h = hull.facets.arr[h_handle]
+            hyperplane_dist(h.plane, pt, hull.pts)
+        end
+
+        if maximum_dist > curr_dist
+            curr_dist = maximum_dist
+            facet = hull.facets.arr[facet.adj[idx]]
+        else
+            break
+        end
+    end
+
+    if curr_dist <= 0
+        handle = findfirst(hull.facets.arr) do f
+            hyperplane_dist(f.plane, pt, hull.pts) > 0
+        end
+
+        return isnothing(handle) ? nothing : hull.facets.arr[handle]
+    else
+        return facet
+    end
+end
