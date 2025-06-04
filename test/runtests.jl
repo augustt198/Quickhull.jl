@@ -52,6 +52,22 @@ for D in (2, 3)
     end
 end
 
+@testset "inserts" begin
+    Random.seed!(1738)
+
+    pts = [rand(Point3d) for i = 1:1000]
+    hull = quickhull(pts)
+
+    for i = 1:1000
+        insert!(hull, rand(Point3d))
+    end
+
+    hull_rebuilt = quickhull(pts)
+
+    @test Set(vertices(hull)) == Set(vertices(hull_rebuilt))
+    @test length(facets(hull)) == length(facets(hull_rebuilt))
+end
+
 @testset "kernels" begin
     Random.seed!(1234)
     pts = sampleball(100_000, 3)

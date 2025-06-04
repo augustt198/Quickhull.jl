@@ -236,6 +236,9 @@ function Base.show(io::IO, ::MIME"text/plain", hull::AbstractHull{D, T, I}) wher
     println(io, facets(hull))
 end
 
+# TODO: ideally we wouldn't do a union of facet
+# points, but it's hard to keep track of the vertices
+# during iteration because vertices can be removed
 function vertices(hull::Hull)
     I = indextype(hull)
     if isnothing(hull.vertices)
@@ -259,6 +262,17 @@ function facets(hull::Hull)
     return mappedarray(f -> NgonFace(f.plane.point_indices), hull.facets.arr)
 end
 
+"""
+    insert!(hull, pt)
+
+Insert a new point into the hull. Returns `true` if the
+point wasn't already in the hull.
+
+Requires the hull to have been created from a vector of points
+that supports `push!` (e.g. this won't work if a matrix of
+points was used). Performance is O(f) in the number of hull facets,
+so it may faster to rebuild the hull than to insert many points.
+"""
 function Base.insert!(hull::Hull{D, T, I, K, V}, pt) where {D, T, I, K, V}
     facet = find_facet_below(hull, pt)
     isnothing(facet) && return false
@@ -270,11 +284,21 @@ function Base.insert!(hull::Hull{D, T, I, K, V}, pt) where {D, T, I, K, V}
 
     data = IterData{D, T, I, K}()
     iter(hull, facet, data)
+    hull.vertices = nothing
     hull.facets.compacted = false
     return true
 end
 
-Base.in(pt, hull::Hull) = isnothing(find_facet_below(hull, pt))
+"""
+    in(pt, hull)
+
+Determine if a point is inside (or on the boundary)
+of the hull.
+"""
+function Base.in(pt, hull::Hull)
+    pt′ = convert(eltype(hull.pts), pt)
+    return isnothing(find_facet_below(hull, pt′))
+end
 
 function find_facet_below(hull, pt)
     make_handles_valid!(hull.facets)

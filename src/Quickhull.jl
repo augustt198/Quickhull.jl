@@ -320,6 +320,7 @@ end
 function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
     time_start = time_ns()
 
+    hull.facets.valid_handles = false
     furthest_pt_idx = facet.furthest_above_point
     furthest_pt = hull.pts[furthest_pt_idx]
 

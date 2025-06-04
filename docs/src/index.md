@@ -27,6 +27,14 @@ facets(::Quickhull.AbstractHull)
 ```
 
 ```@docs
+in(pt, ::Quickhull.Hull)
+```
+
+```@docs
+insert!(::Quickhull.Hull, pt)
+```
+
+```@docs
 GeometryBasics.Mesh(::Quickhull.AbstractHull)
 ```
 
