@@ -23,6 +23,10 @@ vertices(::Quickhull.AbstractHull)
 ```
 
 ```@docs
+vertexpoints(::Quickhull.AbstractHull)
+```
+
+```@docs
 facets(::Quickhull.AbstractHull)
 ```
 
