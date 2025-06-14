@@ -120,6 +120,8 @@ function makesimplexhull(pts::V, simp, I, K) where V
     return hull, data
 end
 
+simplerand(seed) = seed * 6364136223846793005 + 1
+
 # find a good initial simplex by random sampling
 function goodsimplex(pts::V, I, K, nsamp=1000) where V
     T = eltype(eltype(V))
@@ -134,9 +136,15 @@ function goodsimplex(pts::V, I, K, nsamp=1000) where V
 
     samples = min(N, nsamp)
     shouldsample = (samples == nsamp)
+    seed = 0
     @inbounds for i in 1:samples
         # either sample or just go consecutively
-        idx = shouldsample ? rand(1:N) : i
+        if shouldsample
+            seed = simplerand(seed)
+            idx = mod1(seed, N)
+        else
+            idx = i
+        end
         pt = pts[idx]
 
         for (d, c) in enumerate(pt)
