@@ -7,6 +7,10 @@ quickhull
 ```
 
 ```@docs
+quickhull_parallel
+```
+
+```@docs
 delaunay
 ```
 
