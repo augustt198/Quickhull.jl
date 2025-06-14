@@ -4,7 +4,7 @@ function subhull_dc(pts, opts)
 end
 
 function subhull_dc_recur(pts, l, r, level, opts)
-    chunk_len = cld(r - l, opts.subdivide.chunks)
+    chunk_len = cld(r - l + 1, opts.subdivide.chunks)
     chunk_starts = l:chunk_len:r
     tasks = map(chunk_starts) do base
         l′, r′ = base, min(base + chunk_len - 1, r)

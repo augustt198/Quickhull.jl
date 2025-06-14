@@ -124,6 +124,21 @@ end
     @test Set(vertices(quickhull(pts_3d))) == Set([1, 2, 3, 4])
 end
 
+@testset "parallel" begin
+    Random.seed!(1234)
+
+    for D = 2:3
+        pts = randn(D, 100_000)
+
+        hull_reg = quickhull(pts)
+
+        subdiv = Quickhull.ParallelSubdivide(chunks=4, levels=2)
+        hull_par = quickhull(pts, Quickhull.Options(subdivide=subdiv))
+
+        @test Set(vertexpoints(hull_reg)) == Set(vertexpoints(hull_par))
+    end
+end
+
 using Aqua
 @testset "Aqua.jl" begin
     Aqua.test_all(Quickhull)
