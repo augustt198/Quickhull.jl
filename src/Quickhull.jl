@@ -326,7 +326,7 @@ end
 # Do an iteration of quickhull: insert the point furthest
 # above `facet` into the hull.
 function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
-    time_start = time_ns()
+    time_start = isnothing(hull.statistics) ? 0 : time_ns()
 
     hull.facets.valid_handles = false
     furthest_pt_idx = facet.furthest_above_point
@@ -457,7 +457,7 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
     # we also need to fix facets that were below the horizon
     foreach(fixup_adj! ∘ last, horizon)
 
-    time_end = time_ns()
+    time_end = isnothing(hull.statistics) ? 0 : time_ns()
     return IterStat(
         nvisible    = length(visible),
         nnew        = length(newfacets),
