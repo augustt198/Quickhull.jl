@@ -80,17 +80,6 @@ function hyperplane_invert(plane::Hyperplane{D, I, K}) where {D, I, K <: Hyperpl
     Hyperplane(plane.point_indices, K(k.mat, -k.sign))
 end
 
-
-@generated function _det_expanded(mat::SMatrix{D, D, T, D2}) where {D, T, D2}
-    mat2 = [[:(mat[$i, $j]) for j = 1:D] for i = 1:D]
-    return symbolic_det(mat2)
-end
-
-@generated function _perm_expanded(mat::SMatrix{D, D, T, D2}) where {D, T, D2}
-    mat2 = [[:(abs(mat[$i, $j])) for j = 1:D] for i = 1:D]
-    return  symbolic_permanent(mat2)
-end
-
 @generated function det_using_minors_relerror(::Val{D}, ::Type{T}) where {D, T}
     ε = Polynomial([0, 1])
     ε_val = exactify(eps(T))
@@ -165,7 +154,7 @@ function hyperplane_dist(plane::Hyperplane{D, I, HyperplaneKernelExactSIMD{T, Dp
     else
         mat = pointmatrix(pts, plane.point_indices)
         pt′ = SVector{D}(pt)
-        return vol_exact_multifloat(mat, pt′) * k.sign * (-1)^D # not sure why
+        return vol_exact_adaptive_multifloat(mat, pt′) * k.sign * (-1)^D # not sure why
     end
 end
 

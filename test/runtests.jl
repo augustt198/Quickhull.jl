@@ -25,6 +25,20 @@ function hullcompare(my_hull, qhull_hull, only_test_verts=false)
     @test verts_match && facets_match
 end
 
+@testset "predicates" begin
+    Random.seed!(999)
+    for i = 1:100
+        mat, pt = rand(SMatrix{3, 3}), rand(SVector{3})
+        @test Quickhull.vol_exact_slow(mat, pt) == Quickhull.vol_exact_adaptive_multifloat(mat, pt)
+    end
+
+    for i = 1:100
+        mat = rand(SMatrix{3, 3})
+        pt = sum(mat, dims=2)[:, 1] / 3
+        @test Quickhull.vol_exact_slow(mat, pt) == Quickhull.vol_exact_adaptive_multifloat(mat, pt)
+    end
+end
+
 for D in (2, 3)
     @testset "$D-D hull" begin
 

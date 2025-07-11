@@ -68,13 +68,23 @@ function symbolic_det_relative_error(N, base=ε, ε_val=exactify(eps()))
     return expr
 end
 
+@generated function _det_expanded(mat::SMatrix{D, D, T, D2}) where {D, T, D2}
+    mat2 = [[:(mat[$i, $j]) for j = 1:D] for i = 1:D]
+    return symbolic_det(mat2)
+end
+
+@generated function _perm_expanded(mat::SMatrix{D, D, T, D2}) where {D, T, D2}
+    mat2 = [[:(abs(mat[$i, $j])) for j = 1:D] for i = 1:D]
+    return  symbolic_permanent(mat2)
+end
+
 function detn_exact_slow(mat::SMatrix{N, N, T}) where {N, T}
     d = det(exactify.(mat))
     return copysign(T(d), d)
 end
 
 function vol_exact_slow(mat::SMatrix{N, N, T}, pt::SVector{N, T}) where {N, T}
-    d = det(exactify.(mat) .- exactify.(pt))
+    d = _det_expanded(exactify.(mat) .- exactify.(pt))
     return copysign(T(d), d)
 end
 
@@ -101,7 +111,7 @@ end
             if abs(_det) > $rel_f * _perm
                 return _det
             else
-                vol_exact_multifloat(mat, pt)
+                vol_exact_adaptive_multifloat(mat, pt)
             end
         end)
     ex
@@ -118,7 +128,7 @@ end
 
 for op in (:+, :-)
     @eval function Base.$op(a::ExactMultiFloat{T, D1}, b::ExactMultiFloat{T, D2}) where {T, D1, D2}
-        D = max(D1, D2) + 1
+        D = D1 + D2
         a′ = MultiFloat{T, D}(a.x)
         b′ = MultiFloat{T, D}(b.x)
         ExactMultiFloat($op(a′, b′))
@@ -128,7 +138,7 @@ end
 Base.:-(a::ExactMultiFloat) = ExactMultiFloat(-a.x)
 
 function Base.:*(a::ExactMultiFloat{T, D1}, b::ExactMultiFloat{T, D2}) where {T, D1, D2}
-    D = D1 + D2
+    D = 2 * D1 * D2
     a′ = MultiFloat{T, D}(a.x)
     b′ = MultiFloat{T, D}(b.x)
     ExactMultiFloat(a′ * b′)
@@ -143,4 +153,203 @@ function vol_exact_multifloat(mat::SMatrix{N, N, T}, pt::SVector{N, T}) where {N
     M = mat .- pt
     d = _det_expanded(M).x
     return copysign(T(d), d)
+end
+
+using MacroTools
+
+macro bodyinbounds(expr)
+    MacroTools.postwalk(expr) do ex
+        if ex isa Expr && ex.head == :function
+            newbody = :(@inbounds $(ex.args[2]))
+            return Expr(:function, ex.args[1], newbody)
+        end
+        return ex
+    end
+end
+
+# Implements multi-float arithmetic in an exact way. There are
+# basically three lengths in play here, which may be confusing.
+# `N` is the underlying length of the static vector of terms. `length`
+# is the number of terms that are actually occupied (nonzero), stored
+# so expansion_sum, compress_expansion, etc. don't do more work than
+# necessary. Nmax limits the maximum N value that results from doing
+# arithmetic on AdaptiveMultiFloats, i.e. N adjusts automatically up
+# to Nmax. The purpose of this is to avoid blow-up in the number of terms.
+# For instance, the result of the orient3d test requires 192 terms in the
+# absolute worst case - this leads to excruciating compile times. Usually,
+# only a fraction of those 192 terms are needed, so we can limit Nmax to
+# something like 8 or 16. If the result of an arithmetic operation can't
+# be represented exactly for the given Nmax, LossOfPrecisionException
+# will be raised. This should be extremely rare, so it can be handled by
+# using slow arbitrary-precision arithmetic.
+struct AdaptiveMultiFloat{T <: AbstractFloat, N, Nmax}
+    terms::SVector{N, T}
+    length::Int
+end
+
+expansion_sum(e::SVector{N1, T}, f::SVector{N2, T}, elen, flen) where {N1, N2, T} = expansion_sum(e, f, elen, flen, Val{N1 + N2}())
+
+@bodyinbounds function expansion_sum(e::SVector{N1, T}, f::SVector{N2, T}, elen, flen, ::Val{Nnew}) where {N1, N2, T, Nnew}
+    res = zero(SVector{Nnew, T})
+    for j = 1:elen
+        res = setindex(res, e[j], j)
+    end
+
+    for i = 1:flen
+        hi = f[i]
+        lo = zero(hi)
+        for j = 1:elen
+            hi, lo = MultiFloats.two_sum(res[i + j - 1], hi)
+            res = setindex(res, lo, i + j - 1)
+        end
+        res = setindex(res, hi, i + elen)
+    end
+
+    return res
+end
+
+@bodyinbounds function compress_expansion(e::SVector, elen)
+    g = zero(e)
+    Q = e[elen]
+    bottom = elen
+
+    for i = (elen-1):-1:1
+        Q, q = MultiFloats.fast_two_sum(Q, e[i])
+        if !iszero(q)
+            g = setindex(g, Q, bottom)
+            bottom -= 1
+            Q = q
+        end
+    end
+    g = setindex(g, Q, bottom)
+
+    h = zero(e)
+    top = 1
+    for i = (bottom+1):elen
+        Q, q = MultiFloats.fast_two_sum(g[i], Q)
+        if !iszero(q)
+            h = setindex(h, q, top)
+            top += 1
+        end
+    end
+    h = setindex(h, Q, top)
+    return h, top
+end
+
+@bodyinbounds function zero_elim(e::SVector)
+    res = zero(e)
+    idx = 1
+    for (i, x) in enumerate(e)
+        if !iszero(x)
+            res = setindex(res, x, idx)
+            idx += 1
+        end
+    end
+
+    length = idx - 1
+    return res, length
+end
+
+expansion_sum(rand(SVector{4}), rand(SVector{4}), 3, 3)
+
+struct LossOfPrecisionException <: Exception
+end
+
+@bodyinbounds function Base.:+(a::AdaptiveMultiFloat{T, N1, Nmax}, b::AdaptiveMultiFloat{T, N2, Nmax}) where {T, N1, N2, Nmax}
+    summed = expansion_sum(a.terms, b.terms, a.length, b.length)
+    terms, len = compress_expansion(summed, a.length + b.length)
+    if len <= Nmax
+        nterms = min(length(summed), Nmax)
+        terms_trunc = SVector{nterms}(terms[i] for i = 1:nterms)
+
+        AdaptiveMultiFloat{T, nterms, Nmax}(terms_trunc, len)
+    else
+        throw(LossOfPrecisionException())
+    end
+end
+
+@bodyinbounds function scale_expansion(e::SVector{N, T}, elen, b) where {N, T}
+    h = zero(SVector{2*N, T})
+    Q, hnew = MultiFloats.two_prod(e[1], b)
+    h = setindex(h, hnew, 1)
+
+    for i = 2:elen
+        Ti, ti = MultiFloats.two_prod(e[i], b)
+        Q, hnew = MultiFloats.two_sum(Q, ti)
+        h = setindex(h, hnew, 2*i - 2)
+        Q, hnew = MultiFloats.fast_two_sum(Ti, Q)
+        h = setindex(h, hnew, 2*i - 1)
+    end
+    h = setindex(h, Q, 2*elen)
+
+    return h
+end
+
+@bodyinbounds function Base.:*(a::AdaptiveMultiFloat{T, N1, Nmax}, b::AdaptiveMultiFloat{T, N2, Nmax}) where {T, N1, N2, Nmax}
+    prod_sum = zero(SVector{2 * N1 * N2, T})
+
+    prod_sum_length = 0
+    for a_idx = 1:a.length
+        a_term = a.terms[a_idx]
+        
+        prod = scale_expansion(b.terms, b.length, a_term)
+        prod_sum = expansion_sum(prod_sum, prod, prod_sum_length, length(prod), Val{length(prod_sum)}())
+        prod_sum_length += 2 * N2
+    end
+
+    terms, len = compress_expansion(prod_sum, length(prod_sum))
+    if len <= Nmax
+        nterms = min(length(prod_sum), Nmax)
+        terms_trunc = SVector{nterms}(terms[i] for i = 1:nterms)
+
+        AdaptiveMultiFloat{T, nterms, Nmax}(terms_trunc, len)
+    else
+        throw(LossOfPrecisionException())
+    end
+end
+
+function Base.:-(a::AdaptiveMultiFloat{T, N, Nmax}) where {T, N, Nmax}
+    AdaptiveMultiFloat{T, N, Nmax}(-a.terms, a.length)
+end
+
+Base.:-(a::AdaptiveMultiFloat, b::AdaptiveMultiFloat) = a + -b
+
+Base.muladd(a::AdaptiveMultiFloat, b::AdaptiveMultiFloat, c::AdaptiveMultiFloat) = a*b + c
+
+function approximate(a::AdaptiveMultiFloat)
+    if a.length == 0
+        return zero(eltype(a.terms))
+    else
+        return @inbounds a.terms[a.length]
+    end
+end
+
+function AdaptiveMultiFloat(mf::MultiFloat{T, N}) where {T, N}
+    AdaptiveMultiFloat{T, N, N}(reverse(mf._limbs), N)
+end
+
+function AdaptiveMultiFloat(mf::MultiFloat{T, N}, ::Val{Nmax}) where {T, N, Nmax}
+    AdaptiveMultiFloat{T, N, Nmax}(reverse(mf._limbs), N)
+end
+
+function AdaptiveMultiFloat(x::AbstractFloat, ::Val{Nmax}) where {Nmax}
+    AdaptiveMultiFloat{typeof(x), 1, Nmax}(SVector{1}(x), 1)
+end
+
+function vol_exact_adaptive_multifloat(mat::SMatrix{N, N, T}, pt::SVector{N, T}) where {N, T}
+    Nmax = N <= 3 ? Val{8}() : Val{16}()
+    mat = AdaptiveMultiFloat.(mat, Nmax)
+    pt =  AdaptiveMultiFloat.(pt, Nmax)
+
+    try
+        M = mat .- pt
+        d = _det_expanded(M)
+        return approximate(d)
+    catch e
+        if e isa LossOfPrecisionException
+            return vol_exact_slow(mat, pt)
+        else
+            rethrow(e)
+        end
+    end
 end
