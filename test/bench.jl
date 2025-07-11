@@ -2,7 +2,7 @@ using Quickhull
 using BenchmarkTools
 using Profile
 using Random
-using QHull
+import DirectQhull
 
 using GLMakie
 
@@ -46,7 +46,7 @@ function bench()
                 median(res).time / 1e9
             end
             data_qhull = map(Ns) do N
-                res = @benchmark QHull.chull(pts) setup=(Random.seed!(1738); pts=Matrix($sample_func($N, $D)') )
+                res = @benchmark DirectQhull.ConvexHull(pts) setup=(Random.seed!(1738); pts=$sample_func($N, $D))
                 median(res).time / 1e9
             end
 
