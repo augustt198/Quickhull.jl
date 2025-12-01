@@ -118,7 +118,7 @@ struct HyperplaneKernelExactSIMD{T, Dp1} <: HyperplaneKernel
 end
 
 function make_kernel(::Type{K}, point_indices::SVector{D, I}, pts::AbstractVector) where {D, I, K <: HyperplaneKernelExactSIMD}
-    pt_D = length(first(pts))
+    pt_D = pointsdim(pts)
     if D != pt_D
         # fallback when not simplex
         return make_kernel(HyperplaneKernelExact_A, point_indices, pts)

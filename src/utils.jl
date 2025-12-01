@@ -9,7 +9,7 @@ function matrix2points(pts::Matrix{T}) where {T}
 end
 
 function pointmatrix(pts, indices::SVector{N, T}) where {N, T}
-    D = length(first(pts))
+    D = pointsdim(pts)
     mat = hcat(SVector{D}.(pts[Int.(indices)])...)
     @assert mat isa SMatrix
     return mat
@@ -39,3 +39,6 @@ Base.@constprop :aggressive function _droplast(x, dims)
     end
     return x isa Array ? view(x, indices...) : x[indices...]
 end
+
+# this is used for types, so it should be inferrable as a constant
+pointsdim(pts::AbstractVector) = length(first(pts))

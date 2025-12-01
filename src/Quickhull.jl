@@ -89,7 +89,7 @@ end
 # create a Hull from point indices defining a simplex
 function makesimplexhull(pts::V, simp, I, K) where V
     T = eltype(eltype(V))
-    D = length(first(pts))
+    D = pointsdim(pts)
     K′ = typeof(make_kernel(K, SVector{D}(simp[1:end-1]), pts)) # better way to do this??
 
     hull = Hull(pts, zeros(SVector{D, T}), I, K′)
@@ -125,7 +125,7 @@ simplerand(seed) = seed * 6364136223846793005 + 1
 # find a good initial simplex by random sampling
 function goodsimplex(pts::V, I, K, nsamp=1000) where V
     T = eltype(eltype(V))
-    D = length(first(pts))
+    D = pointsdim(pts)
     N = length(pts)
 
     # oof can we end up with repeated indices?? 
@@ -534,7 +534,7 @@ function quickhull(pts::AbstractMatrix{T}, opts::O=Options()) where {T <: Abstra
 end
 
 function quickhull(pts::V, opts::O=Options()) where {V <: AbstractVector, O <: Options}
-    D, N = length(first(pts)), length(pts)
+    D, N = pointsdim(pts), length(pts)
     dimcheck(D, N)
 
     T = eltype(eltype(V))

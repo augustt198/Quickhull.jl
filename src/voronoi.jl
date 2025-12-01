@@ -109,7 +109,7 @@ the coordinate is 0 the point is 'at infinity'.
 """
 function voronoi_edge_points_homogeneous(hull)
     pts = voronoi_centers(hull)
-    D = length(eltype(pts))
+    D = pointsdim(pts)
     edges, rays = _voronoi_edges_and_rays(hull, true)
 
     edge_pts = map(edges) do (i, j)
@@ -167,7 +167,7 @@ end
 function voronoi_cell_hulls(hull)
     adj_map = vertex_adjacency_map(hull)
     pts = voronoi_centers(hull)
-    D = length(first(pts))
+    D = pointsdim(pts)
 
     filter!(adj_map) do (vert, adj)
         return length(adj) >= D + 1
@@ -183,7 +183,7 @@ end
 
 function circumsphere(pts)
     n = length(pts)
-    D = length(first(pts))
+    D = pointsdim(pts)
     @assert n == D + 1
 
     A = zero(SMatrix{D, D})

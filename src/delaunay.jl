@@ -45,7 +45,7 @@ struct LiftedPoints{D, V, P, T} <: AbstractVector{LiftedPoint{D, P, T}}
     lifted_coords::Vector{T}
 
     function LiftedPoints(points::AbstractVector{P}, lift=(pt) -> dot(pt, pt)) where {P}
-        D = length(first(points)) + 1
+        D = pointsdim(points) + 1
         lps = new{D, typeof(points), P, eltype(P)}(points, lift.(points))
 
         # If the lifted coordinates are very similar, the interior
@@ -62,7 +62,7 @@ struct LiftedPoints{D, V, P, T} <: AbstractVector{LiftedPoint{D, P, T}}
     end
 
     function LiftedPoints(points::AbstractVector{P}, lifted_coords::Vector{T}) where {P, T}
-        D = length(first(points)) + 1
+        D = pointsdim(points) + 1
         new{D, typeof(points), P, T}(points, lifted_coords)
     end
 end
@@ -92,7 +92,7 @@ function delaunay_facets(dhull::DelaunayHull)
     maxlift = maximum(last, hull.pts)
 
     return filter(hull.facets.arr) do facet
-        D = length(first(hull.pts))
+        D = pointsdim(hull.pts)
         above_pt = sum(hull.pts[i] for i in facet.plane.point_indices) / D
         above_pt = setindex(above_pt, above_pt[end] + 2maxlift, D)
         hyperplane_dist(facet.plane, above_pt, hull.pts) < 0
