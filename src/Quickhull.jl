@@ -550,6 +550,9 @@ Convenience function for running `quickhull` with the parallel
 subdivision option enabled.
 """
 function quickhull_parallel(pts, addl_opts=Options())
+    # don't override their parallel configuration if it exists
+    subdivide_opt = addl_opts.subdivide isa ParallelSubdivide ? addl_opts.subdivide : ParallelSubdivide()
+
     opts = Options(
         kernel          = addl_opts.kernel,
         indextype       = addl_opts.indextype,
@@ -558,7 +561,7 @@ function quickhull_parallel(pts, addl_opts=Options())
         statistics      = addl_opts.statistics,
         pre_iteration_callback = addl_opts.pre_iteration_callback,
         post_iteration_callback = addl_opts.post_iteration_callback,
-        subdivide = ParallelSubdivide()
+        subdivide = subdivide_opt
     )
 
     quickhull(pts, opts)
