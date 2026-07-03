@@ -207,6 +207,8 @@ Base.@kwdef struct IterStat
     nnew::Int
     ncands::Int
     duration_ns::Int
+    nreallocated::Int
+    nreallocated_unused::Int
 end
 
 mutable struct Hull{D, T <: Number, I <: Integer, K, V <: AbstractVector} <: AbstractHull{D, T, I}

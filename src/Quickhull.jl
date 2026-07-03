@@ -360,6 +360,7 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
     # how many of the facets in `newfacets` are being
     # reused from existing facets
     reallocated = 0
+    reallocated_unused = 0
 
     # STEP 2: build cone of facets from the horizon to `pt`
     newfacets, newplanes = data.newfacets, data.newplanes
@@ -381,6 +382,7 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
         elseif has_unused_facet(hull.facets)
             newfacet = pop_unused_facet!(hull.facets)
             reallocated += 1
+            reallocated_unused += 1
         else
             newfacet = Facet(newplane)
         end
@@ -471,6 +473,8 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
         nvisible    = length(visible),
         nnew        = length(newfacets),
         ncands      = ncands,
+        nreallocated = reallocated,
+        nreallocated_unused = reallocated_unused,
         duration_ns = time_end - time_start
     )
 end
