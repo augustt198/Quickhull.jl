@@ -19,6 +19,7 @@ jobs:
         version:
           - "1.8"
           - "1.11"
+          - "1"
         os:
           - ubuntu-latest
           - windows-latest
