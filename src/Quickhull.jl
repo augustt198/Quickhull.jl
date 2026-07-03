@@ -108,8 +108,8 @@ function makesimplexhull(pts::V, simp, I, K) where V
         return facet
     end
 
-    # initialize above point sets for the simplex facets
-    mark_above(simplex_facets, I(1):I(size(pts, 1)), pts, data, false)
+    # initialize above point sets for the simplex facets. -1 for no apex
+    mark_above(simplex_facets, I(1):I(size(pts, 1)), -1, pts, data, false)
     foreach(f -> push_hull_facet!(hull.facets, f), simplex_facets)
 
     # this point may not truly be in the interior, so it can't
@@ -290,20 +290,21 @@ end
 
 # partition the point indices in `candidates` to the above sets of facets in `fs`.
 # `save` determines if unassigned candidate points should be saved in data.cands 
-function mark_above(fs::AbstractVector{Facet{D, I, K}}, candidates, pts, data::IterData{D, T, I, K}, save) where {D, T, I, K}
+function mark_above(fs::AbstractVector{Facet{D, I, K}}, candidates, apex, pts, data::IterData{D, T, I, K}, save) where {D, T, I, K}
     maxdist = fill!(resize!(data.maxdist, length(fs)), -one(T))
 
     nfs = length(fs)
     for idx in candidates
+        # avoid checking the apex point -- since it is in each facet's plane,
+        # it will cause worst-case behavior for robust primitives
+        (idx == apex) && continue
+
         pt = @inbounds pts[idx]
         marked = false
         for fi = 1:nfs
             facet = @inbounds fs[fi]
             plane = facet.plane
-            
-            # don't check points that define this plane
-            (idx ∈ plane.point_indices) && continue
-        
+
             dist = @inline hyperplane_dist(plane, pt, pts)
             if dist > 0 # 'above'
                 push!(facet.above, idx)
@@ -421,18 +422,26 @@ function iter(hull::Hull{D, T, I, K, V}, facet, data) where {D, T, I, K, V}
 
     # STEP 3: mark above point sets
 
-    # first partition points above the visible facets to
-    # the newly allocated facets. After this the remaining
-    # points to be partitioned are in data.cand, so the
-    # point sets of the previously allocated facets can
-    # be clobbered
-    itr = Iterators.flatten(Iterators.map(f -> f.above, visible))
-    ncands = sum(f -> length(f.above), visible)
-    mark_above(new_allocated, itr, hull.pts, data, true)
+    total_above = sum(f -> length(f.above), visible)
+    ncands = 0
 
-    foreach(f -> empty!(f.above), prev_allocated)
-    mark_above(prev_allocated, data.cands, hull.pts, data, false)
-    
+    if total_above > 1
+        # first partition points above the visible facets to
+        # the newly allocated facets. After this the remaining
+        # points to be partitioned are in data.cand, so the
+        # point sets of the previously allocated facets can
+        # be clobbered
+        itr = Iterators.flatten(Iterators.map(f -> f.above, visible))
+        ncands = sum(f -> length(f.above), visible)
+        mark_above(new_allocated, itr, furthest_pt_idx, hull.pts, data, true)
+
+        foreach(f -> empty!(f.above), prev_allocated)
+        mark_above(prev_allocated, data.cands, furthest_pt_idx, hull.pts, data, false)
+    else
+        # skip the overhead, the apex is the only thing above
+        foreach(f -> empty!(f.above), newfacets)
+    end
+        
     # remove all the visible facets from the hull
     for (i, f) in enumerate(visible)
         remove_hull_facet!(hull.facets, f)
